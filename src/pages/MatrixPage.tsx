@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
 import { ensureDefaultCategory } from '../api/categories'
+import type { Item } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
+import ItemDetailPanel from '../components/ItemDetailPanel'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import CategoryFilter from '../components/CategoryFilter'
@@ -30,6 +32,8 @@ export default function MatrixPage() {
   const [toast, setToast] = useState<string | null>(null)
   // 월간 뷰 카테고리 필터 (빈 배열 = 전체). 표시 전용, 데이터 변경 없음.
   const [monthCatFilter, setMonthCatFilter] = useState<string[]>([])
+  // 상세 패널에 열려 있는 항목 id (태스크 30)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
 
   const {
     loading,
@@ -124,20 +128,25 @@ export default function MatrixPage() {
     [cellMap, upsertItemLocal],
   )
 
-  const handleUpdateItem = useCallback(
-    async (id: string, content: string) => {
+  // 항목 부분 수정(낙관적 + 롤백 + 토스트). 상세 패널과 완료 토글이 공유. (태스크 30)
+  const patchItem = useCallback(
+    async (id: string, patch: Partial<Item>) => {
       const prev = items.find((i) => i.id === id)
       if (!prev) return
-      // 낙관적 반영 후 실패 시 원복 (design 3.10)
-      upsertItemLocal({ ...prev, content, updated_at: new Date().toISOString() })
+      upsertItemLocal({ ...prev, ...patch, updated_at: new Date().toISOString() })
       try {
-        await updateItem(id, { content })
+        await updateItem(id, patch)
       } catch {
         upsertItemLocal(prev)
-        setToast('수정에 실패했습니다.')
+        setToast('변경에 실패했습니다.')
       }
     },
     [items, upsertItemLocal],
+  )
+
+  const handleToggleDone = useCallback(
+    (id: string, done: boolean) => patchItem(id, { done }),
+    [patchItem],
   )
 
   const handleRemoveItem = useCallback(
@@ -152,21 +161,6 @@ export default function MatrixPage() {
       }
     },
     [items, removeItemLocal, upsertItemLocal],
-  )
-
-  const handleToggleDone = useCallback(
-    async (id: string, done: boolean) => {
-      const prev = items.find((i) => i.id === id)
-      if (!prev) return
-      upsertItemLocal({ ...prev, done, updated_at: new Date().toISOString() })
-      try {
-        await updateItem(id, { done })
-      } catch {
-        upsertItemLocal(prev)
-        setToast('완료 상태 변경에 실패했습니다.')
-      }
-    },
-    [items, upsertItemLocal],
   )
 
   return (
@@ -229,8 +223,7 @@ export default function MatrixPage() {
             cellMap={cellMap}
             today={today}
             onAddItem={handleAddItem}
-            onUpdateItem={handleUpdateItem}
-            onRemoveItem={handleRemoveItem}
+            onOpenItem={(it) => setSelectedItemId(it.id)}
             onToggleDone={handleToggleDone}
           />
         )}
@@ -274,6 +267,24 @@ export default function MatrixPage() {
       )}
 
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+
+      {(() => {
+        const selected = selectedItemId
+          ? items.find((i) => i.id === selectedItemId)
+          : null
+        if (!selected) return null
+        const catName =
+          categories.find((c) => c.id === selected.category_id)?.name ?? ''
+        return (
+          <ItemDetailPanel
+            item={selected}
+            categoryName={catName}
+            onClose={() => setSelectedItemId(null)}
+            onPatch={patchItem}
+            onRemove={handleRemoveItem}
+          />
+        )
+      })()}
     </div>
   )
 }

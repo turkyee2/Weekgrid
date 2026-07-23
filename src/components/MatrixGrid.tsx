@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import type { Category } from '../api/types'
+import type { Category, Item } from '../api/types'
 import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
 import { formatDate } from '../lib/date'
 
-// 주간 매트릭스 격자 (태스크 11 렌더 + 태스크 13 항목 추가)
-// 카테고리(행) × 날짜(열). 셀 클릭 → 인라인 입력으로 항목 추가.
+// 주간 매트릭스 격자 (태스크 11 렌더 + 13 추가 + 30 상세 패널 연동)
+// 카테고리(행) × 날짜(열). 빈 셀 클릭 → 인라인 입력으로 항목 추가.
+// 기존 항목 클릭 → 상세 패널 열기(onOpenItem). 체크박스 → 완료 토글.
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -16,12 +17,12 @@ interface Props {
   today: string
   /** 항목 추가: (카테고리, 날짜, 내용) */
   onAddItem: (categoryId: string, date: string, content: string) => Promise<void>
-  /** 항목 내용 수정: (id, 내용) */
-  onUpdateItem: (id: string, content: string) => Promise<void>
-  /** 항목 삭제: (id) */
-  onRemoveItem: (id: string) => Promise<void>
+  /** 항목 클릭 → 상세 패널 열기 */
+  onOpenItem: (item: Item) => void
   /** 완료 토글: (id, done) */
   onToggleDone: (id: string, done: boolean) => Promise<void>
+  /** 항목별 서브태스크 진행률 (완료/전체). 없으면 미표시 (태스크 32) */
+  subtaskProgress?: Map<string, { done: number; total: number }>
 }
 
 export default function MatrixGrid({
@@ -30,52 +31,14 @@ export default function MatrixGrid({
   cellMap,
   today,
   onAddItem,
-  onUpdateItem,
-  onRemoveItem,
+  onOpenItem,
   onToggleDone,
+  subtaskProgress,
 }: Props) {
   // 현재 입력 중인 셀 키와 입력값
   const [activeCell, setActiveCell] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
-
-  // 현재 편집 중인 항목
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDraft, setEditDraft] = useState('')
-  const [editSaving, setEditSaving] = useState(false)
-
-  function startEdit(id: string, content: string) {
-    setActiveCell(null)
-    setEditingId(id)
-    setEditDraft(content)
-  }
-  function cancelEdit() {
-    setEditingId(null)
-    setEditDraft('')
-  }
-  async function saveEdit(id: string) {
-    const content = editDraft.trim()
-    if (!content) {
-      cancelEdit()
-      return
-    }
-    setEditSaving(true)
-    try {
-      await onUpdateItem(id, content)
-      cancelEdit()
-    } finally {
-      setEditSaving(false)
-    }
-  }
-  async function removeEditing(id: string) {
-    setEditSaving(true)
-    try {
-      await onRemoveItem(id)
-      cancelEdit()
-    } finally {
-      setEditSaving(false)
-    }
-  }
 
   function openInput(key: string) {
     setActiveCell(key)
@@ -156,51 +119,12 @@ export default function MatrixGrid({
                     }`}
                   >
                     <ul className="space-y-1">
-                      {items.map((it) =>
-                        editingId === it.id ? (
-                          <li key={it.id} onClick={(e) => e.stopPropagation()}>
-                            <input
-                              autoFocus
-                              value={editDraft}
-                              disabled={editSaving}
-                              onChange={(e) => setEditDraft(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') void saveEdit(it.id)
-                                else if (e.key === 'Escape') cancelEdit()
-                              }}
-                              className="w-full rounded border border-indigo-300 px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-indigo-100"
-                            />
-                            <div className="mt-0.5 flex gap-2 text-[11px]">
-                              <button
-                                type="button"
-                                disabled={editSaving}
-                                onClick={() => void saveEdit(it.id)}
-                                className="text-indigo-600 hover:text-indigo-500"
-                              >
-                                저장
-                              </button>
-                              <button
-                                type="button"
-                                disabled={editSaving}
-                                onClick={() => void removeEditing(it.id)}
-                                className="text-red-500 hover:text-red-400"
-                              >
-                                삭제
-                              </button>
-                              <button
-                                type="button"
-                                disabled={editSaving}
-                                onClick={cancelEdit}
-                                className="text-slate-400 hover:text-slate-600"
-                              >
-                                취소
-                              </button>
-                            </div>
-                          </li>
-                        ) : (
+                      {items.map((it) => {
+                        const prog = subtaskProgress?.get(it.id)
+                        return (
                           <li
                             key={it.id}
-                            className={`flex items-start gap-1.5 rounded px-1 py-0.5 text-xs leading-snug hover:bg-slate-100`}
+                            className="flex items-start gap-1.5 rounded px-1 py-0.5 text-xs leading-snug hover:bg-slate-100"
                           >
                             <input
                               type="checkbox"
@@ -212,22 +136,33 @@ export default function MatrixGrid({
                               }}
                               className="mt-[3px] size-3 shrink-0 cursor-pointer accent-indigo-600"
                             />
-                            <span
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                startEdit(it.id, it.content)
+                                onOpenItem(it)
                               }}
-                              className={`min-w-0 flex-1 cursor-pointer ${
+                              className={`min-w-0 flex-1 text-left ${
                                 it.done
                                   ? 'text-slate-400 line-through'
                                   : 'text-slate-700'
                               }`}
                             >
+                              {it.start_time && (
+                                <span className="mr-1 text-[10px] font-medium text-indigo-500">
+                                  {it.start_time.slice(0, 5)}
+                                </span>
+                              )}
                               {it.content}
-                            </span>
+                              {prog && prog.total > 0 && (
+                                <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] text-slate-500">
+                                  {prog.done}/{prog.total}
+                                </span>
+                              )}
+                            </button>
                           </li>
-                        ),
-                      )}
+                        )
+                      })}
                     </ul>
 
                     {isActive ? (
