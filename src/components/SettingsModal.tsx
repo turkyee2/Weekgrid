@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { upsertSettings } from '../api/settings'
 import type { UserSettings } from '../api/types'
 import type { ViewMode } from '../lib/date'
+import { exportItemsCsv } from '../lib/exportItems'
 
 // 사용자 설정 모달 (태스크 20: 하루 경계 시각 + 기본 뷰)
 // design 3.2 / 요구사항 9 — 하루 경계 시각(0~23) 이전이면 전날로 판정.
@@ -20,6 +21,7 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
   const [defaultView, setDefaultView] = useState<ViewMode>(settings.default_view)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -37,6 +39,18 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    setError('')
+    try {
+      await exportItemsCsv()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '내보내기에 실패했습니다.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -109,6 +123,22 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
         >
           {busy ? '저장 중…' : '저장'}
         </button>
+
+        {/* 데이터 내보내기 */}
+        <div className="mt-6 border-t border-slate-100 pt-4">
+          <p className="text-sm font-medium text-slate-700">데이터</p>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="mt-2 w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {exporting ? '내보내는 중…' : 'CSV 내보내기'}
+          </button>
+          <p className="mt-1.5 text-xs text-slate-400">
+            전체 항목을 엑셀에서 열 수 있는 CSV(UTF-8) 파일로 저장합니다.
+          </p>
+        </div>
 
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
       </form>

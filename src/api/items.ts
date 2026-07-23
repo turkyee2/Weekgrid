@@ -20,6 +20,17 @@ export async function listItemsByRange(
   return data ?? []
 }
 
+/** 사용자의 전체 항목 조회 (CSV 내보내기용, 태스크 22). 날짜 오름차순. */
+export async function listAllItems(): Promise<Item[]> {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .order('date', { ascending: true })
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 /** 특정 셀에 항목 추가 */
 export async function createItem(input: {
   category_id: string
