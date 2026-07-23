@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Item } from '../api/types'
 import { ACCENT_COLORS } from '../lib/colors'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 // 항목 상세 패널 (태스크 30, 요구사항 10·12·13)
 // 우측 드로어. 내용·완료·시작 시각·참가자 태그를 편집한다(낙관적 반영은 부모가 담당).
@@ -28,6 +29,8 @@ export default function ItemDetailPanel({
   const [content, setContent] = useState(item.content)
   const [participantDraft, setParticipantDraft] = useState('')
   const participants = item.participants ?? []
+
+  useEscapeKey(onClose)
 
   // 다른 항목으로 전환되면 로컬 내용 동기화
   useEffect(() => {
@@ -144,8 +147,8 @@ export default function ItemDetailPanel({
                       className="rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     >
                       <option value="">분</option>
-                      {Array.from({ length: 12 }, (_, i) => {
-                        const v = String(i * 5).padStart(2, '0')
+                      {Array.from({ length: 60 }, (_, i) => {
+                        const v = String(i).padStart(2, '0')
                         return (
                           <option key={v} value={v}>
                             {v}

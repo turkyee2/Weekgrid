@@ -5,6 +5,7 @@ import type { ViewMode } from '../lib/date'
 import { exportItemsCsv } from '../lib/exportItems'
 import CategoryManager from './CategoryManager'
 import FeedbackForm from './FeedbackForm'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 // 환경설정 모달 (태스크 20·26·36·37) — 탭 구조: 일반 / 카테고리 / 데이터 / 피드백
 // 주의: CategoryManager·FeedbackForm 이 자체 <form> 을 가지므로 이 모달은 <div> 로 감싼다.
@@ -37,6 +38,7 @@ export default function SettingsModal({
   const [tab, setTab] = useState<Tab>('general')
   const [rollover, setRollover] = useState<number>(settings.day_rollover_hour)
   const [defaultView, setDefaultView] = useState<ViewMode>(settings.default_view)
+  useEscapeKey(onClose)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false)
