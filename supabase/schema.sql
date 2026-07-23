@@ -163,3 +163,21 @@ alter table notes add column if not exists item_id uuid
 -- 항목당 연결 메모는 최대 1개(1:1). 독립 메모(item_id null)는 제한 없음.
 create unique index if not exists notes_item_unique
   on notes(item_id) where item_id is not null;
+
+-- ── feedback : 경량 피드백/문의 (요구사항 17-2) ──────────────
+create table if not exists feedback (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null default auth.uid()
+             references auth.users(id) on delete cascade,
+  message    text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table feedback enable row level security;
+
+drop policy if exists "feedback: 본인 select" on feedback;
+drop policy if exists "feedback: 본인 insert" on feedback;
+create policy "feedback: 본인 select" on feedback
+  for select using (auth.uid() = owner_id);
+create policy "feedback: 본인 insert" on feedback
+  for insert with check (auth.uid() = owner_id);
