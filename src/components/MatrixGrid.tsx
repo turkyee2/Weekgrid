@@ -103,7 +103,7 @@ export default function MatrixGrid({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-md border border-slate-200">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>

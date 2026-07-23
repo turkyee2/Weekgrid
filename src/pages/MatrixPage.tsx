@@ -8,6 +8,7 @@ import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import SettingsModal from '../components/SettingsModal'
 import Toast from '../components/Toast'
+import GridSkeleton from '../components/GridSkeleton'
 import { useMatrixData } from '../hooks/useMatrixData'
 import { cellItems } from '../lib/cellMap'
 import {
@@ -190,7 +191,7 @@ export default function MatrixPage() {
           />
         </div>
 
-        {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
+        {loading && <GridSkeleton rows={viewMode === 'week' ? 4 : 6} cols={7} />}
         {error && (
           <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             <span>{error}</span>
