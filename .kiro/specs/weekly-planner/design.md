@@ -509,3 +509,106 @@ VITE_SUPABASE_ANON_KEY=...   # 브라우저 노출 전제. RLS가 보안을 담�
 
 - 팀/공유: `owner_id`를 소유자로 두고, 별도 멤버십/공유 테이블을 추가하면 RLS 정책 확장으로 대응 가능. 현재 구조를 바꾸지 않아도 된다.
 - Realtime, 오프라인, 항목 드래그 재정렬(fractional index)은 필요 시 추가.
+
+
+---
+
+# 확장 설계 (v2)
+
+v1 구조를 최대한 보존하면서 "항목의 승격"을 중심으로 확장한다. 핵심 통찰: 요구사항
+10·11·12·13·14는 **"항목이 한 줄 텍스트 → 상세를 가진 객체"** 라는 하나의 리팩터 위에 얹힌다.
+
+## v2-1. 데이터 모델 변경 (추가 마이그레이션)
+
+기존 테이블은 유지하고 아래를 **추가(ALTER/CREATE)** 한다. 파괴적 변경 없음.
+
+### items 컬럼 추가
+```
+start_time    time         NULL              -- 선택적 시작 시각(HH:MM). 정렬/표시용
+participants  text[]  NOT NULL default '{}'  -- 참가자 이름 태그 목록(자유 텍스트)
+```
+
+### subtasks (신규) — 항목에 종속된 세부 체크리스트
+```
+id          uuid PK default gen_random_uuid()
+owner_id    uuid NOT NULL default auth.uid() → auth.users(id) ON DELETE CASCADE
+item_id     uuid NOT NULL → items(id) ON DELETE CASCADE
+content     text NOT NULL default ''
+done        bool NOT NULL default false
+sort_order  int  NOT NULL default 0
+created_at  timestamptz NOT NULL default now()
+```
+- 인덱스: `subtasks (owner_id, item_id, sort_order)`
+- RLS 4종(select/insert/update/delete) — 기존 테이블과 동일한 `auth.uid() = owner_id` 패턴.
+
+### notes 컬럼 추가 — 항목 연결(1:1)
+```
+item_id  uuid  NULL  → items(id) ON DELETE CASCADE
+```
+- **1:1 보장**: `create unique index notes_item_unique on notes(item_id) where item_id is not null;`
+- **독립/연결 구분**: 독립(낙서장) = `item_id IS NULL`, 연결 메모 = `item_id = <해당 항목>`.
+- 낙서장 목록 조회(`listNotes`)는 `item_id is null` 필터를 추가한다.
+- 연결 메모는 **지연 생성**: 항목 상세에서 "메모 작성"을 시작할 때만 insert.
+
+### feedback (신규, 요구사항 17) — 경량 피드백
+```
+id          uuid PK default gen_random_uuid()
+owner_id    uuid NOT NULL default auth.uid() → auth.users(id) ON DELETE CASCADE
+message     text NOT NULL
+created_at  timestamptz NOT NULL default now()
+```
+- RLS: 본인 insert/select만 허용(운영자는 대시보드에서 확인).
+
+> 마이그레이션은 `supabase/schema.sql`에 이어붙이되, 재실행 안전하도록 `add column if not
+> exists` / `create table if not exists` / `drop policy if exists` 패턴을 쓴다.
+
+## v2-2. 셀 내 정렬 규칙 (요구사항 12)
+
+한 셀(category_id, date) 또는 월간 한 날짜의 항목 정렬 키:
+```
+1) start_time ASC  (NULL은 마지막)
+2) sort_order ASC
+3) created_at ASC
+```
+- SQL: `order by start_time asc nulls last, sort_order asc, created_at asc`
+- 클라이언트 `buildCellMap`의 셀 정렬도 동일 규칙으로 통일해 주간/월간 일관성 유지.
+
+## v2-3. UX / 컴포넌트 변화
+
+- **항목 상세 패널**: 데스크톱은 우측 드로어, 좁은 화면은 하단 시트. 항목 클릭 시 열림.
+  구성: 내용(제목) · 완료 · 시작 시각 입력 · 참가자 태그 입력(칩) · 서브태스크 리스트
+  (추가/토글/삭제/진행률) · 연결 메모(없으면 "메모 작성" 버튼, 있으면 인라인 에디터).
+- **주간 셀 표시**: 항목 앞/뒤에 시각(있으면) 작게, 참가자 칩은 상세에서 우선(셀은 혼잡하면 생략).
+  서브태스크가 있으면 진행률 배지(2/5) 표시.
+- **카테고리 관리 이동**: 상단 nav의 "카테고리" 버튼 제거 → 환경설정(SettingsModal) 안 섹션으로.
+  신규 사용자 진입 시 카테고리 0개면 기본 "할일" 시드(색은 프리셋 첫 색).
+- **월간 카테고리 필터**: 월간 뷰 헤더에 카테고리 다중 선택(드롭다운/체크박스). 상태는
+  우선 클라이언트 로컬, 필요 시 user_settings로 승격.
+- **메모 체크리스트 삽입**: notes.body는 계속 평문(markdown-ish). "체크리스트 삽입"은
+  커서 위치에 `- [ ] ` 줄을 넣는 경량 동작. 완전한 블록 에디터/템플릿 엔진은 도입하지 않는다.
+- **환경설정 통합**: SettingsModal을 탭/섹션 구조로 — 일반(rollover·기본뷰) / 카테고리 /
+  데이터(내보내기) / 피드백.
+
+## v2-4. API 레이어 추가
+
+- `api/subtasks.ts`: listByItem / create / update / remove / reorder
+- `api/items.ts`: create/update에 `start_time`, `participants` 반영
+- `api/notes.ts`: `getByItem(itemId)` / `createForItem(itemId)` 추가, `listNotes`에 독립 메모 필터
+- `api/categories.ts`: `ensureDefaultCategory()`(없으면 "할일" 생성)
+- `api/feedback.ts`: create
+
+## v2-5. 단계별 이행(위험 낮은 순)
+
+1. 정보구조(쉬움): 카테고리 설정 이동 + 기본 시드, 월간 필터 — 스키마 무변경.
+2. 항목 승격(핵심): items 확장 + subtasks + 상세 패널 + 정렬.
+3. 메모 연동: notes.item_id + 지연 생성 + 낙서장 필터 + 상세 인라인 에디터 + 체크리스트 삽입.
+4. 부가: 환경설정 통합, 경량 피드백.
+5. (미래, 지금 안 함) Edge Function 기반 좁은 AI: 자연어 항목 추가 / 회고 요약.
+
+## v2-6. 보안·확장 유의 (이전 논의 반영)
+
+- **운영자 접근**: 현재 데이터는 평문이라 프로젝트 소유자는 열람 가능. "운영자도 못 봄"이
+  요구되면 별도 과제로 클라이언트측 E2E 암호화 검토(트레이드오프 큼).
+- **대량 조회**: `listAllItems`(CSV)·`listNotes`는 전체 조회라 데이터 누적 시 PostgREST
+  기본 반환 행 제한에 걸릴 수 있음 → 향후 range 페이지네이션 보강.
+- **AI 도입 시**: API 키 보호를 위해 Edge Function 경유 필수(프론트에 키 금지).
