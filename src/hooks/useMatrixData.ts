@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listCategories } from '../api/categories'
 import { listItemsByRange } from '../api/items'
+import { listSubtasksByItems } from '../api/subtasks'
 import { getSettings } from '../api/settings'
 import type { Category, Item, UserSettings } from '../api/types'
 import { DEFAULT_SETTINGS } from '../api/types'
@@ -9,6 +10,9 @@ import { buildDateRange, formatDate, type ViewMode } from '../lib/date'
 
 type Settings = Pick<UserSettings, 'day_rollover_hour' | 'default_view'>
 
+/** 항목별 서브태스크 진행률 (완료/전체) */
+export type SubtaskProgress = Map<string, { done: number; total: number }>
+
 export interface MatrixData {
   loading: boolean
   error: string | null
@@ -16,12 +20,16 @@ export interface MatrixData {
   categories: Category[]
   items: Item[]
   cellMap: CellMap
+  /** 항목별 서브태스크 진행률 (셀 배지용, 태스크 32) */
+  subtaskProgress: SubtaskProgress
   /** 현재 조회한 날짜 범위(문자열) */
   range: { start: string; end: string }
   /** 범위 데이터 수동 재조회 */
   reload: () => void
   /** 설정을 로컬 상태에 즉시 반영 (저장 성공 후) */
   setSettingsLocal: (patch: Partial<Settings>) => void
+  /** 특정 항목의 진행률을 로컬 반영 (상세 패널에서 서브태스크 변경 시) */
+  setItemProgressLocal: (itemId: string, done: number, total: number) => void
   /** 로컬 상태에 항목 추가/갱신 (낙관적) */
   upsertItemLocal: (item: Item) => void
   /** 로컬 상태에서 항목 제거 (낙관적) */
@@ -38,6 +46,9 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [categories, setCategories] = useState<Category[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [subtaskProgress, setSubtaskProgress] = useState<SubtaskProgress>(
+    new Map(),
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -74,6 +85,16 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
       ])
       setCategories(cats)
       setItems(its)
+      // 보이는 항목들의 서브태스크 진행률을 일괄 조회 (태스크 32)
+      const subs = await listSubtasksByItems(its.map((i) => i.id))
+      const progress: SubtaskProgress = new Map()
+      for (const s of subs) {
+        const p = progress.get(s.item_id) ?? { done: 0, total: 0 }
+        p.total += 1
+        if (s.done) p.done += 1
+        progress.set(s.item_id, p)
+      }
+      setSubtaskProgress(progress)
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했습니다.')
     } finally {
@@ -107,6 +128,19 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     setSettings((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  // 진행률 로컬 반영 (태스크 32) — 상세 패널에서 서브태스크 변경 시 즉시 배지 갱신
+  const setItemProgressLocal = useCallback(
+    (itemId: string, done: number, total: number) => {
+      setSubtaskProgress((prev) => {
+        const next = new Map(prev)
+        if (total === 0) next.delete(itemId)
+        else next.set(itemId, { done, total })
+        return next
+      })
+    },
+    [],
+  )
+
   return {
     loading,
     error,
@@ -114,9 +148,11 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     categories,
     items,
     cellMap,
+    subtaskProgress,
     range: { start: startKey, end: endKey },
     reload: () => void loadRange(),
     setSettingsLocal,
+    setItemProgressLocal,
     upsertItemLocal,
     removeItemLocal,
   }

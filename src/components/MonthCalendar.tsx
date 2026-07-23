@@ -97,6 +97,11 @@ export default function MonthCalendar({
                       <span
                         className={`truncate ${it.done ? 'text-slate-400 line-through' : ''}`}
                       >
+                        {it.start_time && (
+                          <span className="mr-0.5 text-indigo-500">
+                            {it.start_time.slice(0, 5)}
+                          </span>
+                        )}
                         {it.content}
                       </span>
                     </li>
