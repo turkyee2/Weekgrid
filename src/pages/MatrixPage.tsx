@@ -86,6 +86,21 @@ export default function MatrixPage() {
     [removeItemLocal],
   )
 
+  const handleToggleDone = useCallback(
+    async (id: string, done: boolean) => {
+      await updateItem(id, { done })
+      const existing = items.find((i) => i.id === id)
+      if (existing) {
+        upsertItemLocal({
+          ...existing,
+          done,
+          updated_at: new Date().toISOString(),
+        })
+      }
+    },
+    [items, upsertItemLocal],
+  )
+
   return (
     <div className="min-h-full bg-white">
       <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -124,6 +139,7 @@ export default function MatrixPage() {
             onAddItem={handleAddItem}
             onUpdateItem={handleUpdateItem}
             onRemoveItem={handleRemoveItem}
+            onToggleDone={handleToggleDone}
           />
         )}
       </main>

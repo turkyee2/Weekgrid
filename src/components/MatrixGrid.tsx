@@ -20,6 +20,8 @@ interface Props {
   onUpdateItem: (id: string, content: string) => Promise<void>
   /** 항목 삭제: (id) */
   onRemoveItem: (id: string) => Promise<void>
+  /** 완료 토글: (id, done) */
+  onToggleDone: (id: string, done: boolean) => Promise<void>
 }
 
 export default function MatrixGrid({
@@ -30,6 +32,7 @@ export default function MatrixGrid({
   onAddItem,
   onUpdateItem,
   onRemoveItem,
+  onToggleDone,
 }: Props) {
   // 현재 입력 중인 셀 키와 입력값
   const [activeCell, setActiveCell] = useState<string | null>(null)
@@ -197,17 +200,31 @@ export default function MatrixGrid({
                         ) : (
                           <li
                             key={it.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              startEdit(it.id, it.content)
-                            }}
-                            className={`cursor-pointer rounded px-1 py-0.5 text-xs leading-snug hover:bg-slate-100 ${
-                              it.done
-                                ? 'text-slate-400 line-through'
-                                : 'text-slate-700'
-                            }`}
+                            className={`flex items-start gap-1.5 rounded px-1 py-0.5 text-xs leading-snug hover:bg-slate-100`}
                           >
-                            {it.content}
+                            <input
+                              type="checkbox"
+                              checked={it.done}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation()
+                                void onToggleDone(it.id, !it.done)
+                              }}
+                              className="mt-[3px] size-3 shrink-0 cursor-pointer accent-indigo-600"
+                            />
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                startEdit(it.id, it.content)
+                              }}
+                              className={`min-w-0 flex-1 cursor-pointer ${
+                                it.done
+                                  ? 'text-slate-400 line-through'
+                                  : 'text-slate-700'
+                              }`}
+                            >
+                              {it.content}
+                            </span>
                           </li>
                         ),
                       )}
