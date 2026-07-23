@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
+import CategoryManager from '../components/CategoryManager'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import ViewHeader from '../components/ViewHeader'
@@ -21,7 +22,10 @@ export default function MatrixPage() {
     range,
     upsertItemLocal,
     removeItemLocal,
+    reload,
   } = useMatrixData('week', anchor)
+
+  const [showCategories, setShowCategories] = useState(false)
 
   const today = useMemo(
     () => logicalToday(new Date(), settings.day_rollover_hour),
@@ -106,6 +110,13 @@ export default function MatrixPage() {
       <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
         <h1 className="text-lg font-semibold text-slate-800">주간 플래너</h1>
         <nav className="flex items-center gap-4 text-sm text-slate-500">
+          <button
+            type="button"
+            onClick={() => setShowCategories(true)}
+            className="hover:text-slate-800"
+          >
+            카테고리
+          </button>
           <Link className="hover:text-slate-800" to="/notes">
             낙서장
           </Link>
@@ -126,9 +137,13 @@ export default function MatrixPage() {
         {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         {!loading && !error && categories.length === 0 && (
-          <p className="text-sm text-slate-400">
-            카테고리가 없습니다. (추가 기능은 곧 구현됩니다.)
-          </p>
+          <button
+            type="button"
+            onClick={() => setShowCategories(true)}
+            className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600"
+          >
+            + 카테고리를 추가해 시작하세요
+          </button>
         )}
         {!loading && !error && categories.length > 0 && (
           <MatrixGrid
@@ -143,6 +158,14 @@ export default function MatrixPage() {
           />
         )}
       </main>
+
+      {showCategories && (
+        <CategoryManager
+          categories={categories}
+          onClose={() => setShowCategories(false)}
+          onChanged={reload}
+        />
+      )}
     </div>
   )
 }
