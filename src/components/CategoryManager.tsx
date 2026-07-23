@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { createCategory, removeCategory } from '../api/categories'
+import {
+  createCategory,
+  removeCategory,
+  reorderCategories,
+} from '../api/categories'
 import type { Category } from '../api/types'
 import { CATEGORY_COLORS, DEFAULT_CATEGORY_COLOR } from '../lib/colors'
 
@@ -60,6 +64,24 @@ export default function CategoryManager({
     }
   }
 
+  async function handleMove(index: number, dir: -1 | 1) {
+    const target = index + dir
+    if (target < 0 || target >= categories.length) return
+    // 배열 스왑 후 sort_order 를 0..n 으로 재부여
+    const next = categories.slice()
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setBusy(true)
+    setError('')
+    try {
+      await reorderCategories(next.map((c, i) => ({ id: c.id, sort_order: i })))
+      onChanged()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '순서 변경에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6"
@@ -87,7 +109,7 @@ export default function CategoryManager({
           {categories.length === 0 && (
             <li className="text-sm text-slate-400">카테고리가 없습니다.</li>
           )}
-          {categories.map((cat) => (
+          {categories.map((cat, index) => (
             <li
               key={cat.id}
               className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-slate-50"
@@ -99,14 +121,34 @@ export default function CategoryManager({
                 />
                 {cat.name}
               </span>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleDelete(cat)}
-                className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50"
-              >
-                삭제
-              </button>
+              <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy || index === 0}
+                  onClick={() => void handleMove(index, -1)}
+                  aria-label="위로"
+                  className="text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || index === categories.length - 1}
+                  onClick={() => void handleMove(index, 1)}
+                  aria-label="아래로"
+                  className="text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleDelete(cat)}
+                  className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50"
+                >
+                  삭제
+                </button>
+              </span>
             </li>
           ))}
         </ul>
