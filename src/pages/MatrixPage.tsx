@@ -1,19 +1,25 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { createItem } from '../api/items'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import ViewHeader from '../components/ViewHeader'
 import { useMatrixData } from '../hooks/useMatrixData'
+import { cellItems } from '../lib/cellMap'
 import { addDays, logicalToday, parseDate, viewLabel } from '../lib/date'
 
-// 매트릭스 화면 (태스크 12: 주 이동 추가)
-// 주간/월간 토글·CRUD는 이후 태스크에서 붙인다. 지금은 주간 고정.
+// 매트릭스 화면 (태스크 13: 항목 추가 추가)
 export default function MatrixPage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date())
-  const { loading, error, settings, categories, cellMap, range } = useMatrixData(
-    'week',
-    anchor,
-  )
+  const {
+    loading,
+    error,
+    settings,
+    categories,
+    cellMap,
+    range,
+    upsertItemLocal,
+  } = useMatrixData('week', anchor)
 
   const today = useMemo(
     () => logicalToday(new Date(), settings.day_rollover_hour),
@@ -37,6 +43,23 @@ export default function MatrixPage() {
     }
     return out
   }, [range.start, range.end])
+
+  const handleAddItem = useCallback(
+    async (categoryId: string, date: string, content: string) => {
+      const existing = cellItems(cellMap, categoryId, date)
+      const sort_order = existing.length
+        ? Math.max(...existing.map((i) => i.sort_order)) + 1
+        : 0
+      const created = await createItem({
+        category_id: categoryId,
+        date,
+        content,
+        sort_order,
+      })
+      upsertItemLocal(created)
+    },
+    [cellMap, upsertItemLocal],
+  )
 
   return (
     <div className="min-h-full bg-white">
@@ -73,6 +96,7 @@ export default function MatrixPage() {
             dates={dates}
             cellMap={cellMap}
             today={today}
+            onAddItem={handleAddItem}
           />
         )}
       </main>

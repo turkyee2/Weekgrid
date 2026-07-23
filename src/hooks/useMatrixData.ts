@@ -20,6 +20,10 @@ export interface MatrixData {
   range: { start: string; end: string }
   /** 범위 데이터 수동 재조회 */
   reload: () => void
+  /** 로컬 상태에 항목 추가/갱신 (낙관적) */
+  upsertItemLocal: (item: Item) => void
+  /** 로컬 상태에서 항목 제거 (낙관적) */
+  removeItemLocal: (id: string) => void
 }
 
 /**
@@ -81,6 +85,21 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
 
   const cellMap = useMemo(() => buildCellMap(items), [items])
 
+  // 낙관적 로컬 반영 (태스크 13~15) — 전체 재조회 없이 즉시 화면 갱신
+  const upsertItemLocal = useCallback((item: Item) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((i) => i.id === item.id)
+      if (idx === -1) return [...prev, item]
+      const next = prev.slice()
+      next[idx] = item
+      return next
+    })
+  }, [])
+
+  const removeItemLocal = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }, [])
+
   return {
     loading,
     error,
@@ -90,5 +109,7 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     cellMap,
     range: { start: startKey, end: endKey },
     reload: () => void loadRange(),
+    upsertItemLocal,
+    removeItemLocal,
   }
 }

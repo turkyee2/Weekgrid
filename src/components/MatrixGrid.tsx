@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import type { Category } from '../api/types'
-import { cellItems, type CellMap } from '../lib/cellMap'
+import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
 import { formatDate } from '../lib/date'
 
-// 주간 매트릭스 격자 (읽기 전용, 태스크 11 · design 3.6-A)
-// 카테고리(행) × 날짜(열). 셀에 항목을 세로로 나열. logicalToday 열 강조.
+// 주간 매트릭스 격자 (태스크 11 렌더 + 태스크 13 항목 추가)
+// 카테고리(행) × 날짜(열). 셀 클릭 → 인라인 입력으로 항목 추가.
 
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -13,9 +14,47 @@ interface Props {
   cellMap: CellMap
   /** 'YYYY-MM-DD' — 오늘로 강조할 열 */
   today: string
+  /** 항목 추가: (카테고리, 날짜, 내용) */
+  onAddItem: (categoryId: string, date: string, content: string) => Promise<void>
 }
 
-export default function MatrixGrid({ categories, dates, cellMap, today }: Props) {
+export default function MatrixGrid({
+  categories,
+  dates,
+  cellMap,
+  today,
+  onAddItem,
+}: Props) {
+  // 현재 입력 중인 셀 키와 입력값
+  const [activeCell, setActiveCell] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  function openInput(key: string) {
+    setActiveCell(key)
+    setDraft('')
+  }
+  function closeInput() {
+    setActiveCell(null)
+    setDraft('')
+  }
+
+  async function submit(categoryId: string, date: string) {
+    const content = draft.trim()
+    if (!content) {
+      closeInput()
+      return
+    }
+    setSaving(true)
+    try {
+      await onAddItem(categoryId, date, content)
+      // 연속 입력을 위해 입력창은 유지하고 값만 비운다
+      setDraft('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
@@ -54,13 +93,18 @@ export default function MatrixGrid({ categories, dates, cellMap, today }: Props)
                 </span>
               </th>
               {dates.map((d) => {
-                const key = formatDate(d)
-                const isToday = key === today
-                const items = cellItems(cellMap, cat.id, key)
+                const dateKey = formatDate(d)
+                const key = cellKey(cat.id, dateKey)
+                const isToday = dateKey === today
+                const items = cellItems(cellMap, cat.id, dateKey)
+                const isActive = activeCell === key
                 return (
                   <td
-                    key={key}
-                    className={`border-b border-l border-slate-200 px-2 py-1.5 align-top ${
+                    key={dateKey}
+                    onClick={() => {
+                      if (!isActive) openInput(key)
+                    }}
+                    className={`group min-w-24 cursor-text border-b border-l border-slate-200 px-2 py-1.5 align-top ${
                       isToday ? 'bg-indigo-50/40' : ''
                     }`}
                   >
@@ -78,6 +122,27 @@ export default function MatrixGrid({ categories, dates, cellMap, today }: Props)
                         </li>
                       ))}
                     </ul>
+
+                    {isActive ? (
+                      <input
+                        autoFocus
+                        value={draft}
+                        disabled={saving}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void submit(cat.id, dateKey)
+                          else if (e.key === 'Escape') closeInput()
+                        }}
+                        onBlur={() => void submit(cat.id, dateKey)}
+                        placeholder="입력 후 Enter"
+                        className="mt-1 w-full rounded border border-indigo-300 px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-indigo-100"
+                      />
+                    ) : (
+                      <div className="mt-0.5 text-xs text-slate-300 opacity-0 group-hover:opacity-100">
+                        + 추가
+                      </div>
+                    )}
                   </td>
                 )
               })}
