@@ -1,16 +1,26 @@
-// 주/월 이동 헤더 (태스크 12 · design 3.7)
-// 라벨 + 이전/다음/오늘 이동. 주간/월간 토글은 태스크 19에서 추가.
+import type { ViewMode } from '../lib/date'
+
+// 주/월 이동 + 뷰 토글 헤더 (태스크 12 + 태스크 19)
 
 interface Props {
   label: string
+  viewMode: ViewMode
   onPrev: () => void
   onNext: () => void
   onToday: () => void
+  onSetView: (mode: ViewMode) => void
 }
 
-export default function ViewHeader({ label, onPrev, onNext, onToday }: Props) {
+export default function ViewHeader({
+  label,
+  viewMode,
+  onPrev,
+  onNext,
+  onToday,
+  onSetView,
+}: Props) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center rounded-md border border-slate-200">
         <button
           type="button"
@@ -36,7 +46,26 @@ export default function ViewHeader({ label, onPrev, onNext, onToday }: Props) {
           ›
         </button>
       </div>
+
       <span className="text-base font-medium text-slate-800">{label}</span>
+
+      {/* 주간/월간 토글 */}
+      <div className="ml-auto flex items-center rounded-md border border-slate-200 p-0.5 text-sm">
+        {(['week', 'month'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onSetView(m)}
+            className={`rounded px-3 py-1 ${
+              viewMode === m
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {m === 'week' ? '주간' : '월간'}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

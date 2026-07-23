@@ -1,17 +1,29 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
 import CategoryManager from '../components/CategoryManager'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
+import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import { useMatrixData } from '../hooks/useMatrixData'
 import { cellItems } from '../lib/cellMap'
-import { addDays, logicalToday, parseDate, viewLabel } from '../lib/date'
+import {
+  addDays,
+  addMonths,
+  buildDateRange,
+  logicalToday,
+  parseDate,
+  viewLabel,
+  type ViewMode,
+} from '../lib/date'
 
-// 매트릭스 화면 (태스크 13: 항목 추가 추가)
+// 매트릭스 화면 (태스크 19: 주간/월간 토글 + 드릴다운)
 export default function MatrixPage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date())
+  const [viewMode, setViewMode] = useState<ViewMode>('week')
+  const [showCategories, setShowCategories] = useState(false)
+
   const {
     loading,
     error,
@@ -19,36 +31,55 @@ export default function MatrixPage() {
     categories,
     items,
     cellMap,
-    range,
     upsertItemLocal,
     removeItemLocal,
     reload,
-  } = useMatrixData('week', anchor)
+  } = useMatrixData(viewMode, anchor)
 
-  const [showCategories, setShowCategories] = useState(false)
+  // 사용자가 토글하기 전까지는 설정의 기본 뷰(default_view)를 따른다
+  const userToggled = useRef(false)
+  useEffect(() => {
+    if (!userToggled.current) setViewMode(settings.default_view)
+  }, [settings.default_view])
 
   const today = useMemo(
     () => logicalToday(new Date(), settings.day_rollover_hour),
     [settings.day_rollover_hour],
   )
 
-  const goPrev = useCallback(() => setAnchor((a) => addDays(a, -7)), [])
-  const goNext = useCallback(() => setAnchor((a) => addDays(a, 7)), [])
+  // 렌더용 날짜 범위 (주간 7일 / 월간 6주 그리드 + monthStart/monthEnd)
+  const anchorKey = logicalToday(anchor, 0) // 안정적인 의존성 키
+  const dateRange = useMemo(
+    () => buildDateRange(viewMode, anchor),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewMode, anchorKey],
+  )
+
+  const goPrev = useCallback(
+    () =>
+      setAnchor((a) => (viewMode === 'week' ? addDays(a, -7) : addMonths(a, -1))),
+    [viewMode],
+  )
+  const goNext = useCallback(
+    () =>
+      setAnchor((a) => (viewMode === 'week' ? addDays(a, 7) : addMonths(a, 1))),
+    [viewMode],
+  )
   const goToday = useCallback(
     () => setAnchor(parseDate(logicalToday(new Date(), settings.day_rollover_hour))),
     [settings.day_rollover_hour],
   )
+  const setView = useCallback((m: ViewMode) => {
+    userToggled.current = true
+    setViewMode(m)
+  }, [])
 
-  const dates = useMemo(() => {
-    const out: Date[] = []
-    let cur = parseDate(range.start)
-    const end = parseDate(range.end)
-    while (cur.getTime() <= end.getTime()) {
-      out.push(cur)
-      cur = addDays(cur, 1)
-    }
-    return out
-  }, [range.start, range.end])
+  // 월간 달력에서 날짜 클릭 → 그 주의 주간 뷰로 드릴다운
+  const handleSelectDate = useCallback((d: Date) => {
+    userToggled.current = true
+    setAnchor(d)
+    setViewMode('week')
+  }, [])
 
   const handleAddItem = useCallback(
     async (categoryId: string, date: string, content: string) => {
@@ -127,10 +158,12 @@ export default function MatrixPage() {
       <main className="px-6 py-6">
         <div className="mb-4">
           <ViewHeader
-            label={viewLabel('week', anchor)}
+            label={viewLabel(viewMode, anchor)}
+            viewMode={viewMode}
             onPrev={goPrev}
             onNext={goNext}
             onToday={goToday}
+            onSetView={setView}
           />
         </div>
 
@@ -145,16 +178,27 @@ export default function MatrixPage() {
             + 카테고리를 추가해 시작하세요
           </button>
         )}
-        {!loading && !error && categories.length > 0 && (
+        {!loading && !error && categories.length > 0 && viewMode === 'week' && (
           <MatrixGrid
             categories={categories}
-            dates={dates}
+            dates={dateRange.dates}
             cellMap={cellMap}
             today={today}
             onAddItem={handleAddItem}
             onUpdateItem={handleUpdateItem}
             onRemoveItem={handleRemoveItem}
             onToggleDone={handleToggleDone}
+          />
+        )}
+        {!loading && !error && categories.length > 0 && viewMode === 'month' && (
+          <MonthCalendar
+            categories={categories}
+            dates={dateRange.dates}
+            cellMap={cellMap}
+            monthStart={dateRange.monthStart!}
+            monthEnd={dateRange.monthEnd!}
+            today={today}
+            onSelectDate={handleSelectDate}
           />
         )}
       </main>
