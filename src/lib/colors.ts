@@ -25,3 +25,23 @@ export const DEFAULT_CATEGORY_COLOR = CATEGORY_COLORS[0].hex
 
 /** 프리셋에 없는 색이 들어와도 안전하게 표시하기 위한 헥스 목록 */
 export const CATEGORY_COLOR_HEXES = CATEGORY_COLORS.map((c) => c.hex)
+
+// ── 항목 중요도(accent) 색 — 텍스트 색으로만 표현 (피드백 #3) ──
+// items.accent 에 key('red'|'amber'|'blue')를 저장. null 이면 기본색.
+export interface AccentColor {
+  key: string
+  label: string
+  hex: string
+}
+
+export const ACCENT_COLORS: AccentColor[] = [
+  { key: 'red', label: '빨강', hex: '#dc2626' }, // red-600 (중요)
+  { key: 'amber', label: '앰버', hex: '#d97706' }, // amber-600 (주의)
+  { key: 'blue', label: '파랑', hex: '#2563eb' }, // blue-600 (정보)
+]
+
+/** accent key → 텍스트 색 HEX (없거나 미지정이면 undefined) */
+export function accentHex(accent: string | null | undefined): string | undefined {
+  if (!accent) return undefined
+  return ACCENT_COLORS.find((a) => a.key === accent)?.hex
+}

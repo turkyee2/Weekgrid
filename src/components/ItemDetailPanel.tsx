@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Item } from '../api/types'
+import { ACCENT_COLORS } from '../lib/colors'
 
 // 항목 상세 패널 (태스크 30, 요구사항 10·12·13)
 // 우측 드로어. 내용·완료·시작 시각·참가자 태그를 편집한다(낙관적 반영은 부모가 담당).
@@ -200,6 +201,37 @@ export default function ItemDetailPanel({
                 placeholder="이름/조직 + Enter"
                 className="min-w-32 flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
+            </div>
+          </div>
+
+          {/* 중요도 색 */}
+          <div className="text-sm font-medium text-slate-700">
+            중요도 색
+            <div className="mt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void onPatch(item.id, { accent: null })}
+                className={`size-6 rounded-full border border-slate-300 bg-white text-[10px] text-slate-400 ${
+                  !item.accent ? 'ring-2 ring-slate-800 ring-offset-1' : ''
+                }`}
+                aria-label="기본"
+                title="기본"
+              >
+                −
+              </button>
+              {ACCENT_COLORS.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => void onPatch(item.id, { accent: a.key })}
+                  className={`size-6 rounded-full ${
+                    item.accent === a.key ? 'ring-2 ring-slate-800 ring-offset-1' : ''
+                  }`}
+                  style={{ backgroundColor: a.hex }}
+                  aria-label={a.label}
+                  title={a.label}
+                />
+              ))}
             </div>
           </div>
 

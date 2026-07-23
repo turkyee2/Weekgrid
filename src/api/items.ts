@@ -64,6 +64,7 @@ export async function updateItem(
       | 'category_id'
       | 'start_time'
       | 'participants'
+      | 'accent'
     >
   >,
 ): Promise<void> {

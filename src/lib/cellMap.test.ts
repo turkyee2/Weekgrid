@@ -13,6 +13,7 @@ function item(partial: Partial<Item>): Item {
     done: false,
     start_time: null,
     participants: [],
+    accent: null,
     created_at: '2026-07-20T00:00:00Z',
     updated_at: '2026-07-20T00:00:00Z',
     ...partial,

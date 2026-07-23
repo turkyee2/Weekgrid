@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Category, Item } from '../api/types'
 import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
 import { formatDate } from '../lib/date'
+import { accentHex } from '../lib/colors'
 
 // 주간 매트릭스 격자 (태스크 11 렌더 + 13 추가 + 30 상세 패널 연동)
 // 카테고리(행) × 날짜(열). 빈 셀 클릭 → 인라인 입력으로 항목 추가.
@@ -144,6 +145,11 @@ export default function MatrixGrid({
                                 e.stopPropagation()
                                 onOpenItem(it)
                               }}
+                              style={
+                                !it.done && accentHex(it.accent)
+                                  ? { color: accentHex(it.accent) }
+                                  : undefined
+                              }
                               className={`min-w-0 flex-1 break-words text-left ${
                                 it.done
                                   ? 'text-slate-400 line-through'
