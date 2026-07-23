@@ -49,7 +49,7 @@ export default function MatrixGrid({
     setDraft('')
   }
 
-  async function submit(categoryId: string, date: string) {
+  async function submit(categoryId: string, date: string, keepOpen: boolean) {
     const content = draft.trim()
     if (!content) {
       closeInput()
@@ -58,8 +58,10 @@ export default function MatrixGrid({
     setSaving(true)
     try {
       await onAddItem(categoryId, date, content)
-      // 연속 입력을 위해 입력창은 유지하고 값만 비운다
-      setDraft('')
+      // Enter 는 연속 입력을 위해 열어둔 채 값만 비우고,
+      // 바깥 클릭(blur) 등은 입력을 닫아 기본 상태로 돌아간다.
+      if (keepOpen) setDraft('')
+      else closeInput()
     } finally {
       setSaving(false)
     }
@@ -67,7 +69,7 @@ export default function MatrixGrid({
 
   return (
     <div className="overflow-x-auto rounded-md border border-slate-200">
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full min-w-[760px] table-fixed border-collapse text-sm">
         <thead>
           <tr>
             <th className="sticky left-0 z-10 w-28 border-b border-slate-200 bg-slate-50 px-3 py-2 text-left font-medium text-slate-400">
@@ -114,7 +116,7 @@ export default function MatrixGrid({
                     onClick={() => {
                       if (!isActive) openInput(key)
                     }}
-                    className={`group min-w-24 cursor-text border-b border-l border-slate-200 px-2 py-1.5 align-top ${
+                    className={`group cursor-text border-b border-l border-slate-200 px-2 py-1.5 align-top ${
                       isToday ? 'bg-indigo-50/40' : ''
                     }`}
                   >
@@ -142,7 +144,7 @@ export default function MatrixGrid({
                                 e.stopPropagation()
                                 onOpenItem(it)
                               }}
-                              className={`min-w-0 flex-1 text-left ${
+                              className={`min-w-0 flex-1 break-words text-left ${
                                 it.done
                                   ? 'text-slate-400 line-through'
                                   : 'text-slate-700'
@@ -173,10 +175,10 @@ export default function MatrixGrid({
                         onChange={(e) => setDraft(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') void submit(cat.id, dateKey)
+                          if (e.key === 'Enter') void submit(cat.id, dateKey, true)
                           else if (e.key === 'Escape') closeInput()
                         }}
-                        onBlur={() => void submit(cat.id, dateKey)}
+                        onBlur={() => void submit(cat.id, dateKey, false)}
                         placeholder="입력 후 Enter"
                         className="mt-1 w-full rounded border border-indigo-300 px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-indigo-100"
                       />

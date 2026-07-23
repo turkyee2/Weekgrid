@@ -103,29 +103,69 @@ export default function ItemDetailPanel({
             />
           </div>
 
-          {/* 시작 시각 */}
-          <label className="block text-sm font-medium text-slate-700">
+          {/* 시작 시각 — 시/분 드롭다운(끝에서 멈춤, 스크롤 없이 선택) */}
+          <div className="text-sm font-medium text-slate-700">
             시작 시각
             <div className="mt-1 flex items-center gap-2">
-              <input
-                type="time"
-                value={item.start_time ? item.start_time.slice(0, 5) : ''}
-                onChange={(e) =>
-                  void onPatch(item.id, { start_time: e.target.value || null })
+              {(() => {
+                const hh = item.start_time ? item.start_time.slice(0, 2) : ''
+                const mm = item.start_time ? item.start_time.slice(3, 5) : ''
+                const setTime = (h: string, m: string) => {
+                  if (!h && !m) {
+                    void onPatch(item.id, { start_time: null })
+                    return
+                  }
+                  const H = (h || '00').padStart(2, '0')
+                  const M = (m || '00').padStart(2, '0')
+                  void onPatch(item.id, { start_time: `${H}:${M}` })
                 }
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
-              {item.start_time && (
-                <button
-                  type="button"
-                  onClick={() => void onPatch(item.id, { start_time: null })}
-                  className="text-xs text-slate-400 hover:text-slate-600"
-                >
-                  지우기
-                </button>
-              )}
+                return (
+                  <>
+                    <select
+                      value={hh}
+                      onChange={(e) => setTime(e.target.value, mm)}
+                      className="rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    >
+                      <option value="">시</option>
+                      {Array.from({ length: 24 }, (_, h) => {
+                        const v = String(h).padStart(2, '0')
+                        return (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <span className="text-slate-400">:</span>
+                    <select
+                      value={mm}
+                      onChange={(e) => setTime(hh, e.target.value)}
+                      className="rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    >
+                      <option value="">분</option>
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const v = String(i * 5).padStart(2, '0')
+                        return (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    {item.start_time && (
+                      <button
+                        type="button"
+                        onClick={() => void onPatch(item.id, { start_time: null })}
+                        className="text-xs text-slate-400 hover:text-slate-600"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
             </div>
-          </label>
+          </div>
 
           {/* 참가자 태그 */}
           <div className="text-sm font-medium text-slate-700">
