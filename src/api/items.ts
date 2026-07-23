@@ -14,6 +14,7 @@ export async function listItemsByRange(
     .select('*')
     .gte('date', start)
     .lte('date', end)
+    .order('start_time', { ascending: true, nullsFirst: false })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -26,6 +27,7 @@ export async function listAllItems(): Promise<Item[]> {
     .from('items')
     .select('*')
     .order('date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
     .order('sort_order', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -37,6 +39,8 @@ export async function createItem(input: {
   date: string
   content: string
   sort_order: number
+  start_time?: string | null
+  participants?: string[]
 }): Promise<Item> {
   const { data, error } = await supabase
     .from('items')
@@ -50,7 +54,18 @@ export async function createItem(input: {
 /** 항목 수정 (content/done/sort_order/date 등). updated_at 도 함께 갱신. */
 export async function updateItem(
   id: string,
-  patch: Partial<Pick<Item, 'content' | 'done' | 'sort_order' | 'date' | 'category_id'>>,
+  patch: Partial<
+    Pick<
+      Item,
+      | 'content'
+      | 'done'
+      | 'sort_order'
+      | 'date'
+      | 'category_id'
+      | 'start_time'
+      | 'participants'
+    >
+  >,
 ): Promise<void> {
   const { error } = await supabase
     .from('items')

@@ -115,3 +115,15 @@ create policy "user_settings: 본인 update" on user_settings
   for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 create policy "user_settings: 본인 delete" on user_settings
   for delete using (auth.uid() = owner_id);
+
+
+-- ============================================================
+-- v2 마이그레이션 (재실행 안전). 위 v1 스키마 이후에 이어서 실행한다.
+-- ============================================================
+
+-- ── items 확장: 시작 시각 + 참가자 태그 (요구사항 12·13) ─────
+alter table items add column if not exists start_time time;
+alter table items add column if not exists participants text[] not null default '{}';
+-- 셀 정렬(시각 오름차순, NULL 마지막)을 돕는 인덱스
+create index if not exists items_owner_date_time_idx
+  on items (owner_id, date, start_time);

@@ -19,6 +19,10 @@ export interface Item {
   content: string
   sort_order: number
   done: boolean
+  /** 선택적 시작 시각 'HH:MM'(또는 'HH:MM:SS'). 정렬/표시용, null 허용 (v2 요구사항 12) */
+  start_time: string | null
+  /** 참가자 이름 태그(자유 텍스트). 계정/공유 아님 (v2 요구사항 13) */
+  participants: string[]
   created_at: string
   updated_at: string
 }

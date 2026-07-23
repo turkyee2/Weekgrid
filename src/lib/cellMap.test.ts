@@ -11,6 +11,8 @@ function item(partial: Partial<Item>): Item {
     content: '',
     sort_order: 0,
     done: false,
+    start_time: null,
+    participants: [],
     created_at: '2026-07-20T00:00:00Z',
     updated_at: '2026-07-20T00:00:00Z',
     ...partial,
@@ -45,6 +47,19 @@ describe('buildCellMap', () => {
   it('없는 셀은 빈 배열', () => {
     const map = buildCellMap([])
     expect(cellItems(map, 'c1', '2026-07-20')).toEqual([])
+  })
+
+  it('시간 있는 항목이 시각 오름차순으로 먼저, 시간 없는 항목은 뒤(sort_order)', () => {
+    const map = buildCellMap([
+      item({ id: 'noon', start_time: '12:00', sort_order: 5 }),
+      item({ id: 'notime', start_time: null, sort_order: 0 }),
+      item({ id: 'morning', start_time: '09:30', sort_order: 9 }),
+    ])
+    expect(cellItems(map, 'c1', '2026-07-20').map((i) => i.id)).toEqual([
+      'morning',
+      'noon',
+      'notime',
+    ])
   })
 
   it('cellKey 형식', () => {
