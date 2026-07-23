@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { DEFAULT_CATEGORY_COLOR } from '../lib/colors'
 import type { Category } from './types'
 
 // 카테고리 API (태스크 9)
@@ -14,6 +15,18 @@ export async function listCategories(): Promise<Category[]> {
     .order('created_at', { ascending: true })
   if (error) throw error
   return data ?? []
+}
+
+/**
+ * 신규 사용자를 위해 기본 카테고리("할일")를 보장한다 (태스크 26, 요구사항 15-2).
+ * 이미 카테고리가 하나라도 있으면 아무것도 하지 않는다.
+ * @returns 새로 생성했으면 true
+ */
+export async function ensureDefaultCategory(): Promise<boolean> {
+  const existing = await listCategories()
+  if (existing.length > 0) return false
+  await createCategory({ name: '할일', color: DEFAULT_CATEGORY_COLOR, sort_order: 0 })
+  return true
 }
 
 /** 새 카테고리 추가 */

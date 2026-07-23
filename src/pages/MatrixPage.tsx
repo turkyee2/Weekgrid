@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
-import CategoryManager from '../components/CategoryManager'
+import { ensureDefaultCategory } from '../api/categories'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import MonthCalendar from '../components/MonthCalendar'
@@ -25,7 +25,6 @@ import {
 export default function MatrixPage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('week')
-  const [showCategories, setShowCategories] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -47,6 +46,20 @@ export default function MatrixPage() {
   useEffect(() => {
     if (!userToggled.current) setViewMode(settings.default_view)
   }, [settings.default_view])
+
+  // 신규 사용자: 카테고리가 하나도 없으면 기본 "할일" 시드 (태스크 26, 요구사항 15-2)
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (seededRef.current) return
+    seededRef.current = true
+    ensureDefaultCategory()
+      .then((created) => {
+        if (created) reload()
+      })
+      .catch(() => {
+        /* 시드 실패는 치명적이지 않음 — 빈 상태 안내로 대체 */
+      })
+  }, [reload])
 
   const today = useMemo(
     () => logicalToday(new Date(), settings.day_rollover_hour),
@@ -160,13 +173,6 @@ export default function MatrixPage() {
         <nav className="flex items-center gap-4 text-sm text-slate-500">
           <button
             type="button"
-            onClick={() => setShowCategories(true)}
-            className="hover:text-slate-800"
-          >
-            카테고리
-          </button>
-          <button
-            type="button"
             onClick={() => setShowSettings(true)}
             className="hover:text-slate-800"
           >
@@ -207,10 +213,10 @@ export default function MatrixPage() {
         {!loading && !error && categories.length === 0 && (
           <button
             type="button"
-            onClick={() => setShowCategories(true)}
+            onClick={() => setShowSettings(true)}
             className="rounded-md border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600"
           >
-            + 카테고리를 추가해 시작하세요
+            + 설정에서 카테고리를 추가해 시작하세요
           </button>
         )}
         {!loading && !error && categories.length > 0 && viewMode === 'week' && (
@@ -238,22 +244,16 @@ export default function MatrixPage() {
         )}
       </main>
 
-      {showCategories && (
-        <CategoryManager
-          categories={categories}
-          onClose={() => setShowCategories(false)}
-          onChanged={reload}
-        />
-      )}
-
       {showSettings && (
         <SettingsModal
           settings={settings}
+          categories={categories}
           onClose={() => setShowSettings(false)}
           onSaved={(patch) => {
             userToggled.current = false // 저장한 기본 뷰를 다시 따르도록
             setSettingsLocal(patch)
           }}
+          onCategoriesChanged={reload}
         />
       )}
 

@@ -1,30 +1,40 @@
 import { useState } from 'react'
 import { upsertSettings } from '../api/settings'
-import type { UserSettings } from '../api/types'
+import type { Category, UserSettings } from '../api/types'
 import type { ViewMode } from '../lib/date'
 import { exportItemsCsv } from '../lib/exportItems'
+import CategoryManager from './CategoryManager'
 
-// 사용자 설정 모달 (태스크 20: 하루 경계 시각 + 기본 뷰)
-// design 3.2 / 요구사항 9 — 하루 경계 시각(0~23) 이전이면 전날로 판정.
+// 사용자 설정 모달 (태스크 20 + 26: 하루 경계 시각 + 기본 뷰 + 카테고리 관리 + 데이터)
+// design 3.2 / 요구사항 9·15 — 카테고리 관리는 상시 메뉴가 아니라 설정 안에 둔다.
+// 주의: CategoryManager 가 자체 <form> 을 가지므로 이 모달은 <form> 대신 <div> 로 감싼다(폼 중첩 금지).
 
 type Settings = Pick<UserSettings, 'day_rollover_hour' | 'default_view'>
 
 interface Props {
   settings: Settings
+  categories: Category[]
   onClose: () => void
-  /** 저장 성공 시 로컬 상태 즉시 반영 */
+  /** 설정 저장 성공 시 로컬 상태 즉시 반영 */
   onSaved: (patch: Settings) => void
+  /** 카테고리 변경 시 매트릭스 데이터 재조회 */
+  onCategoriesChanged: () => void
 }
 
-export default function SettingsModal({ settings, onClose, onSaved }: Props) {
+export default function SettingsModal({
+  settings,
+  categories,
+  onClose,
+  onSaved,
+  onCategoriesChanged,
+}: Props) {
   const [rollover, setRollover] = useState<number>(settings.day_rollover_hour)
   const [defaultView, setDefaultView] = useState<ViewMode>(settings.default_view)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false)
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave() {
     setBusy(true)
     setError('')
     const patch: Settings = {
@@ -56,12 +66,11 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6"
+      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6 py-8"
       onClick={onClose}
     >
-      <form
-        onSubmit={handleSave}
-        className="w-full max-w-md rounded-md border border-slate-200 bg-white p-6"
+      <div
+        className="max-h-full w-full max-w-md overflow-y-auto rounded-md border border-slate-200 bg-white p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -75,7 +84,7 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        {/* 하루 경계 시각 */}
+        {/* ── 일반 ── */}
         <label className="mt-5 block text-sm font-medium text-slate-700">
           하루 경계 시각
           <select
@@ -95,7 +104,6 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
           표시됩니다.
         </p>
 
-        {/* 기본 뷰 */}
         <fieldset className="mt-5">
           <legend className="text-sm font-medium text-slate-700">기본 뷰</legend>
           <div className="mt-2 flex items-center rounded-md border border-slate-200 p-0.5 text-sm">
@@ -117,14 +125,27 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
         </fieldset>
 
         <button
-          type="submit"
+          type="button"
+          onClick={() => void handleSave()}
           disabled={busy}
           className="mt-6 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
         >
-          {busy ? '저장 중…' : '저장'}
+          {busy ? '저장 중…' : '설정 저장'}
         </button>
 
-        {/* 데이터 내보내기 */}
+        {/* ── 카테고리 관리 ── */}
+        <div className="mt-6 border-t border-slate-100 pt-4">
+          <p className="text-sm font-medium text-slate-700">카테고리</p>
+          <p className="mb-2 mt-0.5 text-xs text-slate-400">
+            매트릭스의 행이 됩니다. 초기 세팅 후 가끔만 조정하세요.
+          </p>
+          <CategoryManager
+            categories={categories}
+            onChanged={onCategoriesChanged}
+          />
+        </div>
+
+        {/* ── 데이터 ── */}
         <div className="mt-6 border-t border-slate-100 pt-4">
           <p className="text-sm font-medium text-slate-700">데이터</p>
           <button
@@ -141,7 +162,7 @@ export default function SettingsModal({ settings, onClose, onSaved }: Props) {
         </div>
 
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-      </form>
+      </div>
     </div>
   )
 }

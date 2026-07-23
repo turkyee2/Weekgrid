@@ -7,21 +7,17 @@ import {
 import type { Category } from '../api/types'
 import { CATEGORY_COLORS, DEFAULT_CATEGORY_COLOR } from '../lib/colors'
 
-// 카테고리 관리 모달 (태스크 16: 추가/삭제 + cascade 경고)
-// 순서변경은 태스크 17에서 추가.
+// 카테고리 관리 섹션 (태스크 16 추가/삭제 + 17 순서변경)
+// 태스크 26: 상시 모달에서 → 환경설정(SettingsModal) 안 섹션으로 이동.
+// 자체 모달 크롬 없이 부모(설정 모달) 안에 인라인으로 렌더된다.
 
 interface Props {
   categories: Category[]
-  onClose: () => void
   /** 변경 후 매트릭스 데이터 재조회 트리거 */
   onChanged: () => void
 }
 
-export default function CategoryManager({
-  categories,
-  onClose,
-  onChanged,
-}: Props) {
+export default function CategoryManager({ categories, onChanged }: Props) {
   const [name, setName] = useState('')
   const [color, setColor] = useState(DEFAULT_CATEGORY_COLOR)
   const [busy, setBusy] = useState(false)
@@ -83,29 +79,9 @@ export default function CategoryManager({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-md border border-slate-200 bg-white p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-800">
-            카테고리 관리
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-slate-400 hover:text-slate-700"
-          >
-            닫기
-          </button>
-        </div>
-
-        {/* 목록 */}
-        <ul className="mt-4 space-y-1">
+    <div>
+      {/* 목록 */}
+      <ul className="mt-1 space-y-1">
           {categories.length === 0 && (
             <li className="text-sm text-slate-400">카테고리가 없습니다.</li>
           )}
@@ -192,7 +168,6 @@ export default function CategoryManager({
         </form>
 
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-      </div>
     </div>
   )
 }
