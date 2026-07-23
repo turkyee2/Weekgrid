@@ -74,6 +74,20 @@ export default function ItemNote({ itemId }: Props) {
     if (note) scheduleSave(next, note)
   }
 
+  // Ctrl/Cmd+S: 디바운스 대기 없이 즉시 저장 (피드백 #6 기본 단축키)
+  async function flushSave() {
+    if (!note) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setStatus('saving')
+    try {
+      const updated = await updateNote(note.id, { body })
+      setNote(updated)
+      setStatus('saved')
+    } catch {
+      setStatus('error')
+    }
+  }
+
   // 커서 위치에 체크리스트 한 줄 삽입 (태스크 35)
   function insertChecklist() {
     const ta = taRef.current
@@ -142,6 +156,12 @@ export default function ItemNote({ itemId }: Props) {
             ref={taRef}
             value={body}
             onChange={(e) => onBodyChange(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault()
+                void flushSave()
+              }
+            }}
             rows={8}
             placeholder="자세한 내용을 자유롭게 적어두세요…"
             className="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
