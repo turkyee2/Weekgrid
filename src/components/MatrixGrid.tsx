@@ -3,6 +3,7 @@ import type { Category, Item } from '../api/types'
 import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
 import { formatDate } from '../lib/date'
 import { accentHex } from '../lib/colors'
+import { isHoliday } from '../lib/holidays'
 
 // 주간 매트릭스 격자 (태스크 11 렌더 + 13 추가 + 30 상세 패널 연동)
 // 카테고리(행) × 날짜(열). 빈 셀 클릭 → 인라인 입력으로 항목 추가.
@@ -79,6 +80,7 @@ export default function MatrixGrid({
             {dates.map((d, i) => {
               const key = formatDate(d)
               const isToday = key === today
+              const holiday = isHoliday(key) || d.getDay() === 0
               return (
                 <th
                   key={key}
@@ -87,7 +89,9 @@ export default function MatrixGrid({
                   }`}
                 >
                   <div className="text-xs">{WEEKDAYS[i]}</div>
-                  <div className="text-slate-700">{d.getDate()}</div>
+                  <div className={holiday && !isToday ? 'text-red-500' : 'text-slate-700'}>
+                    {d.getDate()}
+                  </div>
                 </th>
               )
             })}
