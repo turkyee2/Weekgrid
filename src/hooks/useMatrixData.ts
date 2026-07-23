@@ -86,15 +86,20 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
       setCategories(cats)
       setItems(its)
       // 보이는 항목들의 서브태스크 진행률을 일괄 조회 (태스크 32)
-      const subs = await listSubtasksByItems(its.map((i) => i.id))
-      const progress: SubtaskProgress = new Map()
-      for (const s of subs) {
-        const p = progress.get(s.item_id) ?? { done: 0, total: 0 }
-        p.total += 1
-        if (s.done) p.done += 1
-        progress.set(s.item_id, p)
+      // 부차 데이터이므로 실패해도 매트릭스 자체는 표시한다.
+      try {
+        const subs = await listSubtasksByItems(its.map((i) => i.id))
+        const progress: SubtaskProgress = new Map()
+        for (const s of subs) {
+          const p = progress.get(s.item_id) ?? { done: 0, total: 0 }
+          p.total += 1
+          if (s.done) p.done += 1
+          progress.set(s.item_id, p)
+        }
+        setSubtaskProgress(progress)
+      } catch {
+        setSubtaskProgress(new Map())
       }
-      setSubtaskProgress(progress)
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했습니다.')
     } finally {
