@@ -160,7 +160,15 @@ export default function NotesPage() {
         {/* 편집기 */}
         <section>
           {selected ? (
-            <div className="space-y-3">
+            <div
+              className="space-y-3"
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+                  e.preventDefault()
+                  if (dirty && !busy) void handleSave()
+                }
+              }}
+            >
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
