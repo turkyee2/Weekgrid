@@ -23,6 +23,8 @@ export interface Item {
   start_time: string | null
   /** 참가자 이름 태그(자유 텍스트). 계정/공유 아님 (v2 요구사항 13) */
   participants: string[]
+  /** 중요도 강조 색 key ('red'|'amber'|'blue') 또는 null=기본 (피드백 #3) */
+  accent: string | null
   created_at: string
   updated_at: string
 }

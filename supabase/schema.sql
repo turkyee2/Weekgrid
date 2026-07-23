@@ -124,6 +124,8 @@ create policy "user_settings: 본인 delete" on user_settings
 -- ── items 확장: 시작 시각 + 참가자 태그 (요구사항 12·13) ─────
 alter table items add column if not exists start_time time;
 alter table items add column if not exists participants text[] not null default '{}';
+-- 중요도 강조 색 key ('red'|'amber'|'blue') 또는 null (피드백 #3)
+alter table items add column if not exists accent text;
 -- 셀 정렬(시각 오름차순, NULL 마지막)을 돕는 인덱스
 create index if not exists items_owner_date_time_idx
   on items (owner_id, date, start_time);
