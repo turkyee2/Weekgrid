@@ -7,6 +7,7 @@ import MatrixGrid from '../components/MatrixGrid'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import SettingsModal from '../components/SettingsModal'
+import Toast from '../components/Toast'
 import { useMatrixData } from '../hooks/useMatrixData'
 import { cellItems } from '../lib/cellMap'
 import {
@@ -25,6 +26,7 @@ export default function MatrixPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [showCategories, setShowCategories] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const {
     loading,
@@ -90,27 +92,32 @@ export default function MatrixPage() {
       const sort_order = existing.length
         ? Math.max(...existing.map((i) => i.sort_order)) + 1
         : 0
-      const created = await createItem({
-        category_id: categoryId,
-        date,
-        content,
-        sort_order,
-      })
-      upsertItemLocal(created)
+      try {
+        const created = await createItem({
+          category_id: categoryId,
+          date,
+          content,
+          sort_order,
+        })
+        upsertItemLocal(created)
+      } catch {
+        setToast('항목 추가에 실패했습니다.')
+      }
     },
     [cellMap, upsertItemLocal],
   )
 
   const handleUpdateItem = useCallback(
     async (id: string, content: string) => {
-      await updateItem(id, { content })
-      const existing = items.find((i) => i.id === id)
-      if (existing) {
-        upsertItemLocal({
-          ...existing,
-          content,
-          updated_at: new Date().toISOString(),
-        })
+      const prev = items.find((i) => i.id === id)
+      if (!prev) return
+      // 낙관적 반영 후 실패 시 원복 (design 3.10)
+      upsertItemLocal({ ...prev, content, updated_at: new Date().toISOString() })
+      try {
+        await updateItem(id, { content })
+      } catch {
+        upsertItemLocal(prev)
+        setToast('수정에 실패했습니다.')
       }
     },
     [items, upsertItemLocal],
@@ -118,22 +125,28 @@ export default function MatrixPage() {
 
   const handleRemoveItem = useCallback(
     async (id: string) => {
-      await removeItem(id)
+      const prev = items.find((i) => i.id === id)
       removeItemLocal(id)
+      try {
+        await removeItem(id)
+      } catch {
+        if (prev) upsertItemLocal(prev)
+        setToast('삭제에 실패했습니다.')
+      }
     },
-    [removeItemLocal],
+    [items, removeItemLocal, upsertItemLocal],
   )
 
   const handleToggleDone = useCallback(
     async (id: string, done: boolean) => {
-      await updateItem(id, { done })
-      const existing = items.find((i) => i.id === id)
-      if (existing) {
-        upsertItemLocal({
-          ...existing,
-          done,
-          updated_at: new Date().toISOString(),
-        })
+      const prev = items.find((i) => i.id === id)
+      if (!prev) return
+      upsertItemLocal({ ...prev, done, updated_at: new Date().toISOString() })
+      try {
+        await updateItem(id, { done })
+      } catch {
+        upsertItemLocal(prev)
+        setToast('완료 상태 변경에 실패했습니다.')
       }
     },
     [items, upsertItemLocal],
@@ -178,7 +191,18 @@ export default function MatrixPage() {
         </div>
 
         {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={reload}
+              className="rounded border border-red-300 px-2 py-1 text-xs font-medium hover:bg-red-100"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
         {!loading && !error && categories.length === 0 && (
           <button
             type="button"
@@ -231,6 +255,8 @@ export default function MatrixPage() {
           }}
         />
       )}
+
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   )
 }
