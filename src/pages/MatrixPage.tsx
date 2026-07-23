@@ -6,6 +6,7 @@ import type { Item } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import ItemDetailPanel from '../components/ItemDetailPanel'
+import SubtaskList from '../components/SubtaskList'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import CategoryFilter from '../components/CategoryFilter'
@@ -34,6 +35,22 @@ export default function MatrixPage() {
   const [monthCatFilter, setMonthCatFilter] = useState<string[]>([])
   // 상세 패널에 열려 있는 항목 id (태스크 30)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  // 항목별 서브태스크 진행률 (태스크 31~32)
+  const [subtaskProgress, setSubtaskProgress] = useState<
+    Map<string, { done: number; total: number }>
+  >(new Map())
+
+  const handleSubtaskProgress = useCallback(
+    (itemId: string, done: number, total: number) => {
+      setSubtaskProgress((prev) => {
+        const next = new Map(prev)
+        if (total === 0) next.delete(itemId)
+        else next.set(itemId, { done, total })
+        return next
+      })
+    },
+    [],
+  )
 
   const {
     loading,
@@ -225,6 +242,7 @@ export default function MatrixPage() {
             onAddItem={handleAddItem}
             onOpenItem={(it) => setSelectedItemId(it.id)}
             onToggleDone={handleToggleDone}
+            subtaskProgress={subtaskProgress}
           />
         )}
         {!loading && !error && categories.length > 0 && viewMode === 'month' && (
@@ -282,7 +300,12 @@ export default function MatrixPage() {
             onClose={() => setSelectedItemId(null)}
             onPatch={patchItem}
             onRemove={handleRemoveItem}
-          />
+          >
+            <SubtaskList
+              itemId={selected.id}
+              onProgressChange={handleSubtaskProgress}
+            />
+          </ItemDetailPanel>
         )
       })()}
     </div>
