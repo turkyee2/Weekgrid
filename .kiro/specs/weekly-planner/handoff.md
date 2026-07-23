@@ -65,7 +65,35 @@ React(Vite)+Tailwind 정적 SPA가 브라우저에서 실행되고, supabase-js(
 (PostgreSQL+Auth+RLS)에 직접 요청. 서버 코드 없음. Vercel이 `dist/` 정적 호스팅.
 데이터 격리는 전적으로 RLS(`owner_id = auth.uid()`) 담당.
 
-## 7. 주의사항 / 함정
+## 7. 저장소 밖 자원 / 시크릿 위치 (값이 아닌 "어디서 가져오는지"만 기록)
+
+GitHub에 없는 것 = `.env`, `node_modules/`, `dist/` 뿐. 앞의 둘/셋은 재생성 가능하고,
+`.env`와 각종 시크릿은 아래 위치에서 복구/관리한다. **값 자체는 이 문서에 절대 적지 않는다.**
+
+### `.env` 복구 (로컬 유실 시)
+- `cp .env.example .env` 후, Supabase 대시보드 → **Project Settings → API** 에서 복사:
+  - `VITE_SUPABASE_URL` ← "Project URL"
+  - `VITE_SUPABASE_ANON_KEY` ← "Project API keys > anon public"
+- 이 두 값은 공개 전제(브라우저 노출)라 치명적 비밀은 아님. 보안은 RLS가 담당.
+- 편의상 개인 비밀번호 관리자에 백업해두면 좋음(선택).
+
+### 외부 대시보드에만 존재하는 것 (저장소/`.env`/프론트 금지)
+| 시크릿/설정 | 위치 | 비고 |
+|---|---|---|
+| Supabase `service_role` key | Supabase → Settings → API | **절대 프론트/저장소 금지.** 현재 미사용(향후 Edge Function 때만 서버측) |
+| Supabase DB 비밀번호 | Supabase → Settings → Database | 대시보드에서만 |
+| Vercel 환경변수 | Vercel → Project → Settings → Environment Variables | `VITE_SUPABASE_URL`/`ANON_KEY` 등록됨. 변경 시 Redeploy 필요 |
+| GitHub PAT(push 토큰) | 발급자 로컬/비밀번호 관리자 | 비밀번호처럼 취급. 유출 시 GitHub에서 revoke 후 재발급. 권한 최소(Weekgrid Contents R/W) |
+| Google OAuth client secret | Supabase Auth provider 설정 + Google Cloud Console | 구글 로그인 쓸 때만. 대시보드에서만 |
+
+### 연결된 외부 프로젝트 (참고)
+- GitHub 리포: `https://github.com/turkyee2/Weekgrid`
+- 배포: `https://weekgrid.vercel.app` (Vercel, GitHub 연동 자동 배포)
+- Supabase 프로젝트: 대시보드에서 이 앱의 프로젝트 선택 (URL은 `.env`의 `VITE_SUPABASE_URL`)
+
+---
+
+## 8. 주의사항 / 함정
 
 - **스키마 변경 시**: 항상 `supabase/schema.sql`에 idempotent 구문(`add column if not exists`,
   `create table if not exists`, `drop policy if exists` 후 create)으로 추가하고 대시보드에서 재실행.
