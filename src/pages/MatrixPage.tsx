@@ -7,6 +7,7 @@ import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import ItemDetailPanel from '../components/ItemDetailPanel'
 import SubtaskList from '../components/SubtaskList'
+import ItemNote from '../components/ItemNote'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import CategoryFilter from '../components/CategoryFilter'
@@ -291,6 +292,7 @@ export default function MatrixPage() {
               itemId={selected.id}
               onProgressChange={setItemProgressLocal}
             />
+            <ItemNote itemId={selected.id} />
           </ItemDetailPanel>
         )
       })()}
