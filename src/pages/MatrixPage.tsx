@@ -6,6 +6,7 @@ import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
+import CategoryFilter from '../components/CategoryFilter'
 import SettingsModal from '../components/SettingsModal'
 import Toast from '../components/Toast'
 import GridSkeleton from '../components/GridSkeleton'
@@ -27,6 +28,8 @@ export default function MatrixPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // 월간 뷰 카테고리 필터 (빈 배열 = 전체). 표시 전용, 데이터 변경 없음.
+  const [monthCatFilter, setMonthCatFilter] = useState<string[]>([])
 
   const {
     loading,
@@ -232,15 +235,28 @@ export default function MatrixPage() {
           />
         )}
         {!loading && !error && categories.length > 0 && viewMode === 'month' && (
-          <MonthCalendar
-            categories={categories}
-            dates={dateRange.dates}
-            cellMap={cellMap}
-            monthStart={dateRange.monthStart!}
-            monthEnd={dateRange.monthEnd!}
-            today={today}
-            onSelectDate={handleSelectDate}
-          />
+          <>
+            <div className="mb-3 flex justify-end">
+              <CategoryFilter
+                categories={categories}
+                selected={monthCatFilter}
+                onChange={setMonthCatFilter}
+              />
+            </div>
+            <MonthCalendar
+              categories={
+                monthCatFilter.length === 0
+                  ? categories
+                  : categories.filter((c) => monthCatFilter.includes(c.id))
+              }
+              dates={dateRange.dates}
+              cellMap={cellMap}
+              monthStart={dateRange.monthStart!}
+              monthEnd={dateRange.monthEnd!}
+              today={today}
+              onSelectDate={handleSelectDate}
+            />
+          </>
         )}
       </main>
 
