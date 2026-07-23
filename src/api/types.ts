@@ -41,6 +41,8 @@ export interface Subtask {
 export interface Note {
   id: string
   owner_id: string
+  /** 연결된 항목 id. null이면 독립(낙서장) 메모 (v2 요구사항 14) */
+  item_id: string | null
   title: string
   body: string
   updated_at: string

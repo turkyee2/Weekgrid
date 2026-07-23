@@ -156,3 +156,10 @@ create policy "subtasks: 본인 update" on subtasks
   for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 create policy "subtasks: 본인 delete" on subtasks
   for delete using (auth.uid() = owner_id);
+
+-- ── notes 확장: 항목 연결(1:1) (요구사항 14) ─────────────────
+alter table notes add column if not exists item_id uuid
+  references items(id) on delete cascade;
+-- 항목당 연결 메모는 최대 1개(1:1). 독립 메모(item_id null)는 제한 없음.
+create unique index if not exists notes_item_unique
+  on notes(item_id) where item_id is not null;
