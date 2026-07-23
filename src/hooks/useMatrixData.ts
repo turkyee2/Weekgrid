@@ -20,6 +20,8 @@ export interface MatrixData {
   range: { start: string; end: string }
   /** 범위 데이터 수동 재조회 */
   reload: () => void
+  /** 설정을 로컬 상태에 즉시 반영 (저장 성공 후) */
+  setSettingsLocal: (patch: Partial<Settings>) => void
   /** 로컬 상태에 항목 추가/갱신 (낙관적) */
   upsertItemLocal: (item: Item) => void
   /** 로컬 상태에서 항목 제거 (낙관적) */
@@ -100,6 +102,11 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     setItems((prev) => prev.filter((i) => i.id !== id))
   }, [])
 
+  // 설정 로컬 반영 (태스크 20) — upsert 성공 후 재조회 없이 즉시 적용
+  const setSettingsLocal = useCallback((patch: Partial<Settings>) => {
+    setSettings((prev) => ({ ...prev, ...patch }))
+  }, [])
+
   return {
     loading,
     error,
@@ -109,6 +116,7 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     cellMap,
     range: { start: startKey, end: endKey },
     reload: () => void loadRange(),
+    setSettingsLocal,
     upsertItemLocal,
     removeItemLocal,
   }

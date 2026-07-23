@@ -6,6 +6,7 @@ import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
+import SettingsModal from '../components/SettingsModal'
 import { useMatrixData } from '../hooks/useMatrixData'
 import { cellItems } from '../lib/cellMap'
 import {
@@ -23,6 +24,7 @@ export default function MatrixPage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [showCategories, setShowCategories] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const {
     loading,
@@ -33,6 +35,7 @@ export default function MatrixPage() {
     cellMap,
     upsertItemLocal,
     removeItemLocal,
+    setSettingsLocal,
     reload,
   } = useMatrixData(viewMode, anchor)
 
@@ -148,6 +151,13 @@ export default function MatrixPage() {
           >
             카테고리
           </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="hover:text-slate-800"
+          >
+            설정
+          </button>
           <Link className="hover:text-slate-800" to="/notes">
             낙서장
           </Link>
@@ -208,6 +218,17 @@ export default function MatrixPage() {
           categories={categories}
           onClose={() => setShowCategories(false)}
           onChanged={reload}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onClose={() => setShowSettings(false)}
+          onSaved={(patch) => {
+            userToggled.current = false // 저장한 기본 뷰를 다시 따르도록
+            setSettingsLocal(patch)
+          }}
         />
       )}
     </div>
