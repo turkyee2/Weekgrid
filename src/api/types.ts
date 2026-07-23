@@ -27,6 +27,17 @@ export interface Item {
   updated_at: string
 }
 
+/** 항목에 종속된 세부 체크리스트 한 줄 (v2 요구사항 11) */
+export interface Subtask {
+  id: string
+  owner_id: string
+  item_id: string
+  content: string
+  done: boolean
+  sort_order: number
+  created_at: string
+}
+
 export interface Note {
   id: string
   owner_id: string

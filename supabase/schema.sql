@@ -127,3 +127,32 @@ alter table items add column if not exists participants text[] not null default 
 -- 셀 정렬(시각 오름차순, NULL 마지막)을 돕는 인덱스
 create index if not exists items_owner_date_time_idx
   on items (owner_id, date, start_time);
+
+-- ── subtasks : 항목에 종속된 세부 체크리스트 (요구사항 11) ────
+create table if not exists subtasks (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null default auth.uid()
+             references auth.users(id) on delete cascade,
+  item_id    uuid not null references items(id) on delete cascade,
+  content    text not null default '',
+  done       bool not null default false,
+  sort_order int  not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists subtasks_owner_item_sort_idx
+  on subtasks (owner_id, item_id, sort_order);
+
+alter table subtasks enable row level security;
+
+drop policy if exists "subtasks: 본인 select" on subtasks;
+drop policy if exists "subtasks: 본인 insert" on subtasks;
+drop policy if exists "subtasks: 본인 update" on subtasks;
+drop policy if exists "subtasks: 본인 delete" on subtasks;
+create policy "subtasks: 본인 select" on subtasks
+  for select using (auth.uid() = owner_id);
+create policy "subtasks: 본인 insert" on subtasks
+  for insert with check (auth.uid() = owner_id);
+create policy "subtasks: 본인 update" on subtasks
+  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "subtasks: 본인 delete" on subtasks
+  for delete using (auth.uid() = owner_id);
