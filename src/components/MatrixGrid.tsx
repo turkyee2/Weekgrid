@@ -16,6 +16,10 @@ interface Props {
   today: string
   /** 항목 추가: (카테고리, 날짜, 내용) */
   onAddItem: (categoryId: string, date: string, content: string) => Promise<void>
+  /** 항목 내용 수정: (id, 내용) */
+  onUpdateItem: (id: string, content: string) => Promise<void>
+  /** 항목 삭제: (id) */
+  onRemoveItem: (id: string) => Promise<void>
 }
 
 export default function MatrixGrid({
@@ -24,11 +28,51 @@ export default function MatrixGrid({
   cellMap,
   today,
   onAddItem,
+  onUpdateItem,
+  onRemoveItem,
 }: Props) {
   // 현재 입력 중인 셀 키와 입력값
   const [activeCell, setActiveCell] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // 현재 편집 중인 항목
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  function startEdit(id: string, content: string) {
+    setActiveCell(null)
+    setEditingId(id)
+    setEditDraft(content)
+  }
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft('')
+  }
+  async function saveEdit(id: string) {
+    const content = editDraft.trim()
+    if (!content) {
+      cancelEdit()
+      return
+    }
+    setEditSaving(true)
+    try {
+      await onUpdateItem(id, content)
+      cancelEdit()
+    } finally {
+      setEditSaving(false)
+    }
+  }
+  async function removeEditing(id: string) {
+    setEditSaving(true)
+    try {
+      await onRemoveItem(id)
+      cancelEdit()
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   function openInput(key: string) {
     setActiveCell(key)
@@ -109,18 +153,64 @@ export default function MatrixGrid({
                     }`}
                   >
                     <ul className="space-y-1">
-                      {items.map((it) => (
-                        <li
-                          key={it.id}
-                          className={`rounded px-1 py-0.5 text-xs leading-snug ${
-                            it.done
-                              ? 'text-slate-400 line-through'
-                              : 'text-slate-700'
-                          }`}
-                        >
-                          {it.content}
-                        </li>
-                      ))}
+                      {items.map((it) =>
+                        editingId === it.id ? (
+                          <li key={it.id} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              autoFocus
+                              value={editDraft}
+                              disabled={editSaving}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') void saveEdit(it.id)
+                                else if (e.key === 'Escape') cancelEdit()
+                              }}
+                              className="w-full rounded border border-indigo-300 px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-indigo-100"
+                            />
+                            <div className="mt-0.5 flex gap-2 text-[11px]">
+                              <button
+                                type="button"
+                                disabled={editSaving}
+                                onClick={() => void saveEdit(it.id)}
+                                className="text-indigo-600 hover:text-indigo-500"
+                              >
+                                저장
+                              </button>
+                              <button
+                                type="button"
+                                disabled={editSaving}
+                                onClick={() => void removeEditing(it.id)}
+                                className="text-red-500 hover:text-red-400"
+                              >
+                                삭제
+                              </button>
+                              <button
+                                type="button"
+                                disabled={editSaving}
+                                onClick={cancelEdit}
+                                className="text-slate-400 hover:text-slate-600"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </li>
+                        ) : (
+                          <li
+                            key={it.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startEdit(it.id, it.content)
+                            }}
+                            className={`cursor-pointer rounded px-1 py-0.5 text-xs leading-snug hover:bg-slate-100 ${
+                              it.done
+                                ? 'text-slate-400 line-through'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            {it.content}
+                          </li>
+                        ),
+                      )}
                     </ul>
 
                     {isActive ? (

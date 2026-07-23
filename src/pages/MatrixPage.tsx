@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createItem } from '../api/items'
+import { createItem, removeItem, updateItem } from '../api/items'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
 import ViewHeader from '../components/ViewHeader'
@@ -16,9 +16,11 @@ export default function MatrixPage() {
     error,
     settings,
     categories,
+    items,
     cellMap,
     range,
     upsertItemLocal,
+    removeItemLocal,
   } = useMatrixData('week', anchor)
 
   const today = useMemo(
@@ -61,6 +63,29 @@ export default function MatrixPage() {
     [cellMap, upsertItemLocal],
   )
 
+  const handleUpdateItem = useCallback(
+    async (id: string, content: string) => {
+      await updateItem(id, { content })
+      const existing = items.find((i) => i.id === id)
+      if (existing) {
+        upsertItemLocal({
+          ...existing,
+          content,
+          updated_at: new Date().toISOString(),
+        })
+      }
+    },
+    [items, upsertItemLocal],
+  )
+
+  const handleRemoveItem = useCallback(
+    async (id: string) => {
+      await removeItem(id)
+      removeItemLocal(id)
+    },
+    [removeItemLocal],
+  )
+
   return (
     <div className="min-h-full bg-white">
       <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -97,6 +122,8 @@ export default function MatrixPage() {
             cellMap={cellMap}
             today={today}
             onAddItem={handleAddItem}
+            onUpdateItem={handleUpdateItem}
+            onRemoveItem={handleRemoveItem}
           />
         )}
       </main>
