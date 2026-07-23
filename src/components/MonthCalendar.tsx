@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { Category } from '../api/types'
 import { dayItems, type CellMap } from '../lib/cellMap'
 import { formatDate } from '../lib/date'
+import { isHoliday } from '../lib/holidays'
 
 // 월간 달력 그리드 (태스크 18 · design 3.6-B)
 // 주(월~일) = 한 행. 날짜 칸에 그날 항목을 카테고리 색으로 요약(+N 축약).
@@ -61,6 +62,7 @@ export default function MonthCalendar({
             const key = formatDate(d)
             const inMonth = d.getTime() >= monthStartMs && d.getTime() <= monthEndMs
             const isToday = key === today
+            const holiday = isHoliday(key) || d.getDay() === 0
             const items = dayItems(cellMap, categoryIds, key)
             const visible = items.slice(0, MAX_VISIBLE)
             const overflow = items.length - visible.length
@@ -77,9 +79,13 @@ export default function MonthCalendar({
                   className={`mb-0.5 inline-flex size-5 items-center justify-center rounded-full text-xs ${
                     isToday
                       ? 'bg-indigo-600 font-medium text-white'
-                      : inMonth
-                        ? 'text-slate-700'
-                        : 'text-slate-300'
+                      : holiday
+                        ? inMonth
+                          ? 'text-red-500'
+                          : 'text-red-300'
+                        : inMonth
+                          ? 'text-slate-700'
+                          : 'text-slate-300'
                   }`}
                 >
                   {d.getDate()}
