@@ -3,6 +3,7 @@ import {
   createCategory,
   removeCategory,
   reorderCategories,
+  updateCategory,
 } from '../api/categories'
 import type { Category } from '../api/types'
 import { CATEGORY_COLORS, DEFAULT_CATEGORY_COLOR } from '../lib/colors'
@@ -22,6 +23,8 @@ export default function CategoryManager({ categories, onChanged }: Props) {
   const [color, setColor] = useState(DEFAULT_CATEGORY_COLOR)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -78,6 +81,37 @@ export default function CategoryManager({ categories, onChanged }: Props) {
     }
   }
 
+  function startEdit(cat: Category) {
+    setEditingId(cat.id)
+    setEditingName(cat.name)
+    setError('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditingName('')
+  }
+
+  async function commitEdit(cat: Category) {
+    if (editingId !== cat.id) return // 이미 커밋/취소됨 (blur+submit 중복 방지)
+    const trimmed = editingName.trim()
+    if (!trimmed || trimmed === cat.name) {
+      cancelEdit()
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await updateCategory(cat.id, { name: trimmed })
+      cancelEdit()
+      onChanged()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '이름 변경에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div>
       {/* 목록 */}
@@ -90,13 +124,44 @@ export default function CategoryManager({ categories, onChanged }: Props) {
               key={cat.id}
               className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-slate-50"
             >
-              <span className="flex items-center gap-2 text-sm text-slate-700">
-                <span
-                  className="inline-block size-3 rounded-full"
-                  style={{ backgroundColor: cat.color }}
-                />
-                {cat.name}
-              </span>
+              {editingId === cat.id ? (
+                <form
+                  className="flex flex-1 items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void commitEdit(cat)
+                  }}
+                >
+                  <span
+                    className="inline-block size-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                    onBlur={() => void commitEdit(cat)}
+                    disabled={busy}
+                    className="min-w-0 flex-1 rounded border border-indigo-300 px-1.5 py-0.5 text-sm outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startEdit(cat)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-slate-700"
+                  title="클릭해서 이름 수정"
+                >
+                  <span
+                    className="inline-block size-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                  <span className="truncate">{cat.name}</span>
+                </button>
+              )}
               <span className="flex items-center gap-2">
                 <button
                   type="button"
