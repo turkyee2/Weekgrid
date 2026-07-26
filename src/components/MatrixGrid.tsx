@@ -52,6 +52,8 @@ export default function MatrixGrid({
   }
 
   async function submit(categoryId: string, date: string, keepOpen: boolean) {
+    // 저장 중 재진입 방지(중복 저장 + 이미 처리 중인 blur 재호출 무시)
+    if (saving) return
     const content = draft.trim()
     if (!content) {
       closeInput()
@@ -181,7 +183,6 @@ export default function MatrixGrid({
                       <input
                         autoFocus
                         value={draft}
-                        disabled={saving}
                         onChange={(e) => setDraft(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
