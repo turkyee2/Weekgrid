@@ -183,3 +183,53 @@ create policy "feedback: 본인 select" on feedback
   for select using (auth.uid() = owner_id);
 create policy "feedback: 본인 insert" on feedback
   for insert with check (auth.uid() = owner_id);
+
+
+-- ============================================================
+-- v3 마이그레이션 (재실행 안전). 기술부채 정리 — 소유자 FK 검증 + updated_at 트리거.
+-- ⚠️ 복합 FK를 추가하기 전에 기존 데이터가 이미 정합성을 만족해야 한다
+--    (items.owner_id가 참조하는 categories 행의 owner_id와 항상 같아야 함).
+--    개인용 단일 사용자 데이터라면 보통 문제없지만, ALTER 가 실패하면
+--    불일치 행을 먼저 정리해야 한다는 신호다.
+-- ============================================================
+
+-- ── (id, owner_id) 복합 unique — 아래 복합 FK가 참조할 대상 ──────
+alter table categories drop constraint if exists categories_id_owner_key;
+alter table categories add constraint categories_id_owner_key unique (id, owner_id);
+
+alter table items drop constraint if exists items_id_owner_key;
+alter table items add constraint items_id_owner_key unique (id, owner_id);
+
+-- ── items.category_id: 소유자까지 함께 검증하는 복합 FK로 교체 ────
+alter table items drop constraint if exists items_category_id_fkey;
+alter table items add constraint items_category_id_owner_fkey
+  foreign key (category_id, owner_id) references categories(id, owner_id)
+  on delete cascade;
+
+-- ── subtasks.item_id: 동일한 소유자 검증 구멍 메움 ───────────────
+alter table subtasks drop constraint if exists subtasks_item_id_fkey;
+alter table subtasks add constraint subtasks_item_id_owner_fkey
+  foreign key (item_id, owner_id) references items(id, owner_id)
+  on delete cascade;
+
+-- ── updated_at 자동 갱신 트리거 (items, notes) ───────────────────
+-- 지금까지는 클라이언트가 매 update마다 updated_at 값을 직접 보냈다.
+-- 이제 DB가 갱신을 책임지므로 클라이언트는 더 이상 이 값을 보내지 않아도 된다
+-- (보내더라도 트리거가 now()로 덮어쓴다).
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists items_set_updated_at on items;
+create trigger items_set_updated_at
+  before update on items
+  for each row execute function set_updated_at();
+
+drop trigger if exists notes_set_updated_at on notes;
+create trigger notes_set_updated_at
+  before update on notes
+  for each row execute function set_updated_at();
