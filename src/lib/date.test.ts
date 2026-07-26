@@ -3,6 +3,7 @@ import {
   addDays,
   addMonths,
   buildDateRange,
+  dDayLabel,
   formatDate,
   logicalToday,
   monthLabel,
@@ -105,5 +106,17 @@ describe('라벨', () => {
   })
   it('monthLabel', () => {
     expect(monthLabel(new Date(2026, 6, 22))).toBe('2026년 7월')
+  })
+})
+
+describe('dDayLabel', () => {
+  it('기준일이 오늘이면 D-day', () => {
+    expect(dDayLabel('2026-07-27', '2026-07-27')).toBe('D-day')
+  })
+  it('기준일이 미래면 D-N', () => {
+    expect(dDayLabel('2026-07-30', '2026-07-27')).toBe('D-3')
+  })
+  it('기준일이 과거면 D+N', () => {
+    expect(dDayLabel('2026-07-24', '2026-07-27')).toBe('D+3')
   })
 })

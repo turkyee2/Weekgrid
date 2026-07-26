@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Category, Item } from '../api/types'
 import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
-import { formatDate } from '../lib/date'
+import { dDayLabel, formatDate } from '../lib/date'
 import { accentHex } from '../lib/colors'
 import { isHoliday } from '../lib/holidays'
 
@@ -168,6 +168,11 @@ export default function MatrixGrid({
                                 </span>
                               )}
                               {it.content}
+                              {it.show_dday && (
+                                <span className="ml-1 rounded bg-rose-50 px-1 text-[10px] font-medium text-rose-500">
+                                  {dDayLabel(it.date, today)}
+                                </span>
+                              )}
                               {prog && prog.total > 0 && (
                                 <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] text-slate-500">
                                   {prog.done}/{prog.total}

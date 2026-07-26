@@ -114,3 +114,12 @@ export function monthLabel(anchor: Date): string {
 export function viewLabel(mode: ViewMode, anchor: Date): string {
   return mode === 'week' ? weekLabel(anchor) : monthLabel(anchor)
 }
+
+/** 'YYYY-MM-DD' 기준일까지 남은/지난 일수 배지. target === today → 'D-day' */
+export function dDayLabel(target: string, today: string): string {
+  const days = Math.round(
+    (parseDate(target).getTime() - parseDate(today).getTime()) / 86_400_000,
+  )
+  if (days === 0) return 'D-day'
+  return days > 0 ? `D-${days}` : `D+${-days}`
+}

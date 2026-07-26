@@ -129,6 +129,8 @@ alter table items add column if not exists accent text;
 -- 셀 정렬(시각 오름차순, NULL 마지막)을 돕는 인덱스
 create index if not exists items_owner_date_time_idx
   on items (owner_id, date, start_time);
+-- D-day 표시 여부. true면 매트릭스에서 이 항목의 date를 기준일로 D-N 배지를 보여준다.
+alter table items add column if not exists show_dday bool not null default false;
 
 -- ── subtasks : 항목에 종속된 세부 체크리스트 (요구사항 11) ────
 create table if not exists subtasks (
