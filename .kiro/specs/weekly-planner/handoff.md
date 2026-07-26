@@ -23,6 +23,12 @@
   ```sql
   alter table items add column if not exists accent text;
   ```
+- **[중요] v3 마이그레이션(기술부채 정리) 적용 여부 확인 (2026-07-27 추가)**:
+  `schema.sql`의 "v3 마이그레이션" 블록 — 소유자 검증 복합 FK + `updated_at`
+  자동 갱신 트리거. 코드(클라이언트)는 이미 이 트리거를 전제로 수동 타임스탬프
+  세팅을 제거했으므로, **이 블록을 대시보드에서 실행하지 않으면 `updated_at`이
+  더 이상 갱신되지 않는다**(트리거도 없고 클라이언트도 안 보냄). 전체 재실행이
+  가장 안전.
 - **로컬 커밋 push 여부 확인**: Vercel은 GitHub push 시 자동 배포됨. 마지막 작업 커밋들이
   `origin/main`에 올라가 배포에 반영됐는지 확인:
   ```bash

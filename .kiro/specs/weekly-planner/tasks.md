@@ -6,6 +6,20 @@
 > - 태스크 25 (Vercel 배포): **완료** — https://weekgrid.vercel.app
 > - 태스크 O (미래): 미구현 — 좁은 AI, 페이지네이션, E2E 암호화, 앱/위젯
 > - 진행 중 피드백(중요도 강조·공휴일·메모 서식 등)은 별도 반복으로 반영 예정
+> - **버그 수정 (2026-07-27)**: 엔터로 항목 저장 후 셀 입력 UI가 조작 불가능하게
+>   남는 문제 — `MatrixGrid.tsx`에서 저장 중 `disabled`가 포커스를 강제로 뺏던
+>   것이 원인. `disabled` 제거 + `submit()` 재진입 가드로 수정. (`CLAUDE.md`
+>   다음 우선순위 1번)
+> - **기술부채 정리 (2026-07-27)**: `schema.sql` v3 마이그레이션 — categories/items에
+>   `(id, owner_id)` unique + items.category_id·subtasks.item_id를 복합 FK로
+>   교체(소유자 불일치 차단), items/notes에 `updated_at` 자동 갱신 트리거 추가하고
+>   클라이언트의 수동 타임스탬프 세팅 제거. **⚠️ Supabase 대시보드에서 이
+>   마이그레이션 블록을 아직 실행 안 했다면 재실행 필요** (`CLAUDE.md` 다음
+>   우선순위 2번).
+> - **D-Day 기능 (2026-07-27)**: `items.show_dday bool` 컬럼 추가(항목이 놓인
+>   셀의 `date`를 D-day 기준일로 재사용). `ItemDetailPanel`에 토글, `MatrixGrid`
+>   셀에 `D-N`/`D-day`/`D+N` 배지(`lib/date.ts`의 `dDayLabel`). **⚠️ `schema.sql`
+>   재실행 필요**(v3 마이그레이션과 함께). (`CLAUDE.md` 다음 우선순위 3번)
 >
 > 아래 체크박스는 최초 계획 시점의 원본이며, 실제 완료 여부는 위 요약과 git 커밋 이력을 기준으로 한다.
 
