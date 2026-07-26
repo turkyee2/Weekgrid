@@ -30,7 +30,7 @@ export async function getNoteByItem(itemId: string): Promise<Note | null> {
 export async function createNoteForItem(itemId: string): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
-    .insert({ item_id: itemId, title: '', body: '', updated_at: new Date().toISOString() })
+    .insert({ item_id: itemId, title: '', body: '' })
     .select('*')
     .single()
   if (error) throw error
@@ -44,21 +44,21 @@ export async function createNote(input: {
 }): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
-    .insert({ ...input, updated_at: new Date().toISOString() })
+    .insert(input)
     .select('*')
     .single()
   if (error) throw error
   return data
 }
 
-/** 제목/본문 수정 (updated_at 갱신) */
+/** 제목/본문 수정. updated_at 은 DB 트리거가 갱신. */
 export async function updateNote(
   id: string,
   patch: Partial<Pick<Note, 'title' | 'body'>>,
 ): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq('id', id)
     .select('*')
     .single()

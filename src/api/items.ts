@@ -51,7 +51,7 @@ export async function createItem(input: {
   return data
 }
 
-/** 항목 수정 (content/done/sort_order/date 등). updated_at 도 함께 갱신. */
+/** 항목 수정 (content/done/sort_order/date 등). updated_at 은 DB 트리거가 갱신. */
 export async function updateItem(
   id: string,
   patch: Partial<
@@ -65,13 +65,11 @@ export async function updateItem(
       | 'start_time'
       | 'participants'
       | 'accent'
+      | 'show_dday'
     >
   >,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('items')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', id)
+  const { error } = await supabase.from('items').update(patch).eq('id', id)
   if (error) throw error
 }
 
