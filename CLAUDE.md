@@ -55,6 +55,11 @@ RLS(`owner_id = auth.uid()`)가 담당.
    노출). **⚠️ 실제 UID 값 미설정 상태** — `handoff.md` 2장의 두 단계(DB
    `app.admin_uid` 설정 + `.env`/Vercel `VITE_ADMIN_UID`) 완료해야 동작.
    (`backlog.md` 1.2)
-6. 낙서장 정비 — 목록 미리보기 숨기기 → 되돌리기(항목 연결 메모 우선) →
-   자동저장 → 폴더(`note_folders`, `parent_id`는 미리 만들되 지금은 평평하게만
-   사용) (`backlog.md` 2.4)
+6. 낙서장 정비 (`backlog.md` 2.4)
+   - ~~목록 미리보기 숨기기~~ — **완료(2026-07-27, 메모별 선택형)**: 전체
+     제거가 아니라 `notes.hide_preview bool` 컬럼으로 메모별 토글, 숨기면
+     본문 대신 "🔒 비공개" 표시(UI만 가림). **⚠️ schema.sql 재실행 필요.**
+   - ~~되돌리기(항목 연결 메모 우선)~~ — **완료(2026-07-27)**: `ItemNote.tsx`에
+     직전 자동저장 값 1단계 스냅샷 + 되돌리기 버튼.
+   - 다음: 자동저장(`NotesPage.tsx`, 되돌리기와 세트) → 폴더(`note_folders`,
+     `parent_id`는 미리 만들되 지금은 평평하게만 사용)

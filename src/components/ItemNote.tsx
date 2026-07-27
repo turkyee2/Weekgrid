@@ -6,6 +6,9 @@ import type { Note } from '../api/types'
 // - 지연 생성: "메모 작성"을 눌러야 메모 행이 만들어진다(빈 메모 양산 방지).
 // - 자동 저장: 입력이 멈추면(디바운스) body 를 저장하고 updated_at 을 갱신한다.
 // - 체크리스트 삽입: 커서 위치에 '- [ ] ' 를 넣는 경량 동작(태스크 35).
+// - 되돌리기: 자동저장이라 실수로 지운 내용도 바로 저장돼버리는 문제(backlog 2.4)
+//   대응 — 새 편집이 시작될 때마다 "그 직전까지 저장돼 있던 값"을 1단계만
+//   기억해두고, 되돌리기를 누르면 그 값으로 복원 후 즉시 저장한다.
 
 interface Props {
   itemId: string
@@ -19,12 +22,14 @@ export default function ItemNote({ itemId }: Props) {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
     'idle',
   )
+  const [undoBody, setUndoBody] = useState<string | null>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     let alive = true
     setLoading(true)
+    setUndoBody(null)
     getNoteByItem(itemId)
       .then((n) => {
         if (!alive) return
@@ -47,6 +52,7 @@ export default function ItemNote({ itemId }: Props) {
       const created = await createNoteForItem(itemId)
       setNote(created)
       setBody('')
+      setUndoBody(null)
       setTimeout(() => taRef.current?.focus(), 0)
     } catch {
       setStatus('error')
@@ -55,17 +61,24 @@ export default function ItemNote({ itemId }: Props) {
     }
   }
 
-  function scheduleSave(nextBody: string, current: Note) {
+  async function persist(text: string, current: Note) {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setStatus('saving')
-    saveTimer.current = setTimeout(async () => {
-      try {
-        const updated = await updateNote(current.id, { body: nextBody })
-        setNote(updated)
-        setStatus('saved')
-      } catch {
-        setStatus('error')
-      }
+    try {
+      const updated = await updateNote(current.id, { body: text })
+      setNote(updated)
+      setStatus('saved')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  function scheduleSave(nextBody: string, current: Note) {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setUndoBody(current.body)
+    setStatus('saving')
+    saveTimer.current = setTimeout(() => {
+      void persist(nextBody, current)
     }, 600)
   }
 
@@ -77,15 +90,16 @@ export default function ItemNote({ itemId }: Props) {
   // Ctrl/Cmd+S: 디바운스 대기 없이 즉시 저장 (피드백 #6 기본 단축키)
   async function flushSave() {
     if (!note) return
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    setStatus('saving')
-    try {
-      const updated = await updateNote(note.id, { body })
-      setNote(updated)
-      setStatus('saved')
-    } catch {
-      setStatus('error')
-    }
+    await persist(body, note)
+  }
+
+  // 되돌리기: 직전 저장값으로 복원 후 즉시 저장(1단계 스냅샷이라 한 번 쓰면 사라짐)
+  async function handleUndo() {
+    if (undoBody === null || !note) return
+    const prev = undoBody
+    setBody(prev)
+    setUndoBody(null)
+    await persist(prev, note)
   }
 
   // 커서 위치에 체크리스트 한 줄 삽입 (태스크 35)
@@ -120,15 +134,26 @@ export default function ItemNote({ itemId }: Props) {
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-slate-700">메모</span>
         {note && (
-          <span className="text-xs text-slate-400">
-            {status === 'saving'
-              ? '저장 중…'
-              : status === 'saved'
-                ? '저장됨'
-                : status === 'error'
-                  ? '저장 실패'
-                  : ''}
-          </span>
+          <div className="flex items-center gap-2">
+            {undoBody !== null && (
+              <button
+                type="button"
+                onClick={() => void handleUndo()}
+                className="rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-50"
+              >
+                되돌리기
+              </button>
+            )}
+            <span className="text-xs text-slate-400">
+              {status === 'saving'
+                ? '저장 중…'
+                : status === 'saved'
+                  ? '저장됨'
+                  : status === 'error'
+                    ? '저장 실패'
+                    : ''}
+            </span>
+          </div>
         )}
       </div>
 
