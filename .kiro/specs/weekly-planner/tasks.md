@@ -42,6 +42,12 @@
 >   자동저장 값 1단계 메모리 스냅샷(`undoBody`) + 되돌리기 버튼. 다음은
 >   `NotesPage.tsx` 자동저장(이 되돌리기와 세트로 진행). (`CLAUDE.md` 다음
 >   우선순위 6번, `backlog.md` 2.4)
+> - **버그 수정 (2026-07-27, v3.1.0)**: `feedback` select 정책을 관리자 예외
+>   버전으로 바꾸며 정책 이름도 바뀌었는데(`"...본인 select"` →
+>   `"...본인 또는 관리자 select"`), 새 이름에 대한 `drop policy if exists`를
+>   빼먹어서 `schema.sql` 재실행 시 "policy already exists" 에러 발생. drop
+>   문 추가로 수정 — 이 기회에 전체 policy/constraint/trigger 쌍을 전수
+>   점검해 다른 누락은 없음을 확인.
 >
 > 아래 체크박스는 최초 계획 시점의 원본이며, 실제 완료 여부는 위 요약과 git 커밋 이력을 기준으로 한다.
 
