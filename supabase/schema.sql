@@ -181,8 +181,14 @@ alter table feedback enable row level security;
 
 drop policy if exists "feedback: 본인 select" on feedback;
 drop policy if exists "feedback: 본인 insert" on feedback;
-create policy "feedback: 본인 select" on feedback
-  for select using (auth.uid() = owner_id);
+-- 본인 것 또는 관리자(app.admin_uid) 조회 가능. 관리자 UID 값 자체는 여기 없음 —
+-- Supabase SQL Editor에서 한 번만 아래 실행(값은 handoff.md 시크릿 표 참고):
+--   alter database postgres set app.admin_uid = '<내 UID>';
+create policy "feedback: 본인 또는 관리자 select" on feedback
+  for select using (
+    auth.uid() = owner_id
+    or auth.uid()::text = current_setting('app.admin_uid', true)
+  );
 create policy "feedback: 본인 insert" on feedback
   for insert with check (auth.uid() = owner_id);
 

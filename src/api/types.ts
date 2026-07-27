@@ -52,6 +52,13 @@ export interface Note {
   updated_at: string
 }
 
+export interface Feedback {
+  id: string
+  owner_id: string
+  message: string
+  created_at: string
+}
+
 export interface UserSettings {
   owner_id: string
   day_rollover_hour: number // 0~23

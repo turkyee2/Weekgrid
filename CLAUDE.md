@@ -43,16 +43,18 @@ RLS(`owner_id = auth.uid()`)가 담당.
 ## 다음 우선순위
 1. ~~엔터키 입력 UI 버그 수정~~ — **완료(2026-07-27)**: `MatrixGrid.tsx`,
    `disabled` 제거 + `submit()` 재진입 가드.
-2. ~~기술부채 두 가지~~ — **완료(2026-07-27, 코드 기준)**: `schema.sql` v3
-   마이그레이션(FK 소유자 검증 + `updated_at` 트리거) 작성. **⚠️ Supabase
-   대시보드에서 아직 실행 안 했으면 재실행 필요** — 실행 전엔 로컬 코드와
-   실제 DB가 어긋난 상태.
-3. ~~D-Day 기능~~ — **완료(2026-07-27, 코드 기준)**: `items.show_dday bool`
-   컬럼, 상세 패널 토글, 매트릭스 배지. 마찬가지로 **schema.sql 재실행 필요**
-   (2번과 같은 배치로 실행하면 됨).
-4. backlog 우선순위: 검색 → 완료 필터 → 드래그 재정렬 → PWA
-5. 피드백 확인 방법 (`feedback` select 정책에 본인 UID 예외 추가 + 설정 탭
-   조건부 뷰 — `backlog.md` 1.2)
+2. ~~기술부채 두 가지~~ — **완료(2026-07-27)**: `schema.sql` v3 마이그레이션
+   (FK 소유자 검증 + `updated_at` 트리거) 작성 및 대시보드 실행 확인 완료.
+3. ~~D-Day 기능~~ — **완료(2026-07-27)**: `items.show_dday bool` 컬럼,
+   상세 패널 토글, 매트릭스 배지.
+4. **보류(사용자 지정)**: backlog 우선순위(검색 → 완료 필터 → 드래그 재정렬 →
+   PWA) — 통째로 미룸. 각 항목 상세 설계는 아직 없음(한 줄 아이디어 수준).
+5. ~~피드백 확인 방법~~ — **완료(2026-07-27, 코드 기준)**: `feedback` select
+   정책이 `current_setting('app.admin_uid', true)`로 관리자 예외 허용, 설정
+   탭에 `FeedbackList` 조건부 뷰 추가(`VITE_ADMIN_UID`와 로그인 UID 일치 시만
+   노출). **⚠️ 실제 UID 값 미설정 상태** — `handoff.md` 2장의 두 단계(DB
+   `app.admin_uid` 설정 + `.env`/Vercel `VITE_ADMIN_UID`) 완료해야 동작.
+   (`backlog.md` 1.2)
 6. 낙서장 정비 — 목록 미리보기 숨기기 → 되돌리기(항목 연결 메모 우선) →
    자동저장 → 폴더(`note_folders`, `parent_id`는 미리 만들되 지금은 평평하게만
    사용) (`backlog.md` 2.4)

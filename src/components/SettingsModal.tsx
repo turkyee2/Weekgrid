@@ -5,6 +5,7 @@ import type { ViewMode } from '../lib/date'
 import { exportItemsCsv } from '../lib/exportItems'
 import CategoryManager from './CategoryManager'
 import FeedbackForm from './FeedbackForm'
+import FeedbackList from './FeedbackList'
 import { useEscapeKey } from '../lib/useEscapeKey'
 
 // 환경설정 모달 (태스크 20·26·36·37) — 탭 구조: 일반 / 카테고리 / 데이터 / 피드백
@@ -197,7 +198,12 @@ export default function SettingsModal({
             </div>
           )}
 
-          {tab === 'feedback' && <FeedbackForm />}
+          {tab === 'feedback' && (
+            <>
+              <FeedbackForm />
+              <FeedbackList />
+            </>
+          )}
 
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
