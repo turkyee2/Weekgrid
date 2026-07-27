@@ -85,6 +85,16 @@ export default function NotesPage() {
     }
   }
 
+  async function handleTogglePreview(n: Note) {
+    setError('')
+    try {
+      const updated = await updateNote(n.id, { hide_preview: !n.hide_preview })
+      upsertLocal(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '변경에 실패했습니다.')
+    }
+  }
+
   async function handleDelete() {
     if (!selected) return
     const ok = window.confirm('이 메모를 삭제할까요?')
@@ -135,22 +145,36 @@ export default function NotesPage() {
           )}
           <ul className="space-y-1">
             {notes.map((n) => (
-              <li key={n.id}>
+              <li key={n.id} className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setSelectedId(n.id)}
-                  className={`w-full rounded-md px-3 py-2 text-left text-sm ${
+                  className={`min-w-0 flex-1 rounded-md px-3 py-2 text-left text-sm ${
                     n.id === selectedId
                       ? 'bg-indigo-50 text-indigo-700'
                       : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block truncate font-medium">
+                  <span
+                    className={`block truncate ${
+                      n.title.trim()
+                        ? 'font-medium'
+                        : 'font-medium text-slate-400'
+                    }`}
+                  >
                     {n.title.trim() || '제목 없음'}
                   </span>
                   <span className="block truncate text-xs text-slate-400">
-                    {n.body.trim() || '내용 없음'}
+                    {n.hide_preview ? '🔒 비공개' : n.body.trim() || '내용 없음'}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleTogglePreview(n)}
+                  title={n.hide_preview ? '미리보기 다시 보이기' : '목록 미리보기 숨기기'}
+                  className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  {n.hide_preview ? '🔒' : '🔓'}
                 </button>
               </li>
             ))}

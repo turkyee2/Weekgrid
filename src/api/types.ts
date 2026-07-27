@@ -49,6 +49,8 @@ export interface Note {
   item_id: string | null
   title: string
   body: string
+  /** true면 목록 미리보기에 본문 대신 자물쇠 표시(UI 상 가리기, 암호화 아님) */
+  hide_preview: boolean
   updated_at: string
 }
 
