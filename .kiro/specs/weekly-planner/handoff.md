@@ -35,6 +35,13 @@
   git fetch origin && git status -sb   # ahead 표시가 있으면 git push 필요
   git push
   ```
+- **[신규] 피드백 조회 기능 (2026-07-27 추가, backlog 1.2)**: `feedback` select 정책이
+  `app.admin_uid` DB 설정을 참조하도록 바뀜(`schema.sql` 재실행 필요, 위 v3와
+  같은 배치로 가능) + 아래 두 곳에 실제 UID 값 설정 필요(둘 다 이 저장소엔 없음):
+  1. Supabase SQL Editor: `alter database postgres set app.admin_uid = '<내 UID>';`
+  2. 로컬 `.env`와 Vercel 환경변수에 `VITE_ADMIN_UID=<내 UID>` 추가(후자는 Redeploy 필요)
+  둘 다 안 하면 기능 자체는 조용히 숨겨짐(에러 없음) — 설정 탭 피드백 섹션에
+  목록이 안 보일 뿐.
 
 ## 3. 로컬에서 다시 시작하는 법
 
@@ -88,9 +95,10 @@ GitHub에 없는 것 = `.env`, `node_modules/`, `dist/` 뿐. 앞의 둘/셋은 �
 |---|---|---|
 | Supabase `service_role` key | Supabase → Settings → API | **절대 프론트/저장소 금지.** 현재 미사용(향후 Edge Function 때만 서버측) |
 | Supabase DB 비밀번호 | Supabase → Settings → Database | 대시보드에서만 |
-| Vercel 환경변수 | Vercel → Project → Settings → Environment Variables | `VITE_SUPABASE_URL`/`ANON_KEY` 등록됨. 변경 시 Redeploy 필요 |
+| Vercel 환경변수 | Vercel → Project → Settings → Environment Variables | `VITE_SUPABASE_URL`/`ANON_KEY` 등록됨. `VITE_ADMIN_UID`도 추가 필요(피드백 조회, backlog 1.2). 변경 시 Redeploy 필요 |
 | GitHub PAT(push 토큰) | 발급자 로컬/비밀번호 관리자 | 비밀번호처럼 취급. 유출 시 GitHub에서 revoke 후 재발급. 권한 최소(Weekgrid Contents R/W) |
 | Google OAuth client secret | Supabase Auth provider 설정 + Google Cloud Console | 구글 로그인 쓸 때만. 대시보드에서만 |
+| `app.admin_uid` (DB 커스텀 설정) | Supabase SQL Editor에서 1회 실행: `alter database postgres set app.admin_uid = '<내 UID>';` | 관리자 UID를 `feedback` RLS 정책이 읽음(schema.sql엔 리터럴 없음, public 레포라 커밋 안 함). `VITE_ADMIN_UID`(위 Vercel 행)와 같은 값이어야 함 |
 
 ### 연결된 외부 프로젝트 (참고)
 - GitHub 리포: `https://github.com/turkyee2/Weekgrid`

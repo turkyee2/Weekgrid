@@ -20,6 +20,13 @@
 >   셀의 `date`를 D-day 기준일로 재사용). `ItemDetailPanel`에 토글, `MatrixGrid`
 >   셀에 `D-N`/`D-day`/`D+N` 배지(`lib/date.ts`의 `dDayLabel`). **⚠️ `schema.sql`
 >   재실행 필요**(v3 마이그레이션과 함께). (`CLAUDE.md` 다음 우선순위 3번)
+> - **피드백 조회 기능 (2026-07-27)**: `feedback` select 정책에 관리자 예외 추가
+>   (`current_setting('app.admin_uid', true)`, public 레포라 리터럴 UID 대신
+>   DB 커스텀 설정 사용), `api/feedback.ts`에 `listFeedback()`, 설정 탭에
+>   `FeedbackList` 컴포넌트(로그인 UID가 `VITE_ADMIN_UID`와 일치할 때만 노출).
+>   **⚠️ 실제 UID 값 미설정**(`app.admin_uid` DB 설정 + `.env`/Vercel
+>   `VITE_ADMIN_UID`) — 설정 전엔 목록이 조용히 숨겨짐. (`CLAUDE.md` 다음
+>   우선순위 5번, `backlog.md` 1.2)
 >
 > 아래 체크박스는 최초 계획 시점의 원본이며, 실제 완료 여부는 위 요약과 git 커밋 이력을 기준으로 한다.
 
