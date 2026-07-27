@@ -201,6 +201,14 @@ create policy "feedback: 본인 insert" on feedback
 --    불일치 행을 먼저 정리해야 한다는 신호다.
 -- ============================================================
 
+-- ── 의존하는 복합 FK를 먼저 정리 ──────────────────────────────
+-- 재실행 시 아래 unique 제약을 drop하려면 이걸 참조하는 FK가 먼저 없어야 한다
+-- (이 순서가 아니면 "other objects depend on it" 에러로 재실행이 막힌다).
+alter table items drop constraint if exists items_category_id_fkey;
+alter table items drop constraint if exists items_category_id_owner_fkey;
+alter table subtasks drop constraint if exists subtasks_item_id_fkey;
+alter table subtasks drop constraint if exists subtasks_item_id_owner_fkey;
+
 -- ── (id, owner_id) 복합 unique — 아래 복합 FK가 참조할 대상 ──────
 alter table categories drop constraint if exists categories_id_owner_key;
 alter table categories add constraint categories_id_owner_key unique (id, owner_id);
@@ -208,14 +216,11 @@ alter table categories add constraint categories_id_owner_key unique (id, owner_
 alter table items drop constraint if exists items_id_owner_key;
 alter table items add constraint items_id_owner_key unique (id, owner_id);
 
--- ── items.category_id: 소유자까지 함께 검증하는 복합 FK로 교체 ────
-alter table items drop constraint if exists items_category_id_fkey;
+-- ── items.category_id / subtasks.item_id: 소유자까지 검증하는 복합 FK 재생성 ──
 alter table items add constraint items_category_id_owner_fkey
   foreign key (category_id, owner_id) references categories(id, owner_id)
   on delete cascade;
 
--- ── subtasks.item_id: 동일한 소유자 검증 구멍 메움 ───────────────
-alter table subtasks drop constraint if exists subtasks_item_id_fkey;
 alter table subtasks add constraint subtasks_item_id_owner_fkey
   foreign key (item_id, owner_id) references items(id, owner_id)
   on delete cascade;
