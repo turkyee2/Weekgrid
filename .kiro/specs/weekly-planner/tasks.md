@@ -16,6 +16,11 @@
 >   클라이언트의 수동 타임스탬프 세팅 제거. **⚠️ Supabase 대시보드에서 이
 >   마이그레이션 블록을 아직 실행 안 했다면 재실행 필요** (`CLAUDE.md` 다음
 >   우선순위 2번).
+> - **버그 수정 (2026-07-27, v3 재실행 안전성)**: 위 v3 블록이 사실은 재실행
+>   불가였음 — `categories_id_owner_key`/`items_id_owner_key` unique 제약을
+>   drop하려 할 때 이미 생성된 복합 FK가 그걸 참조하고 있어 두 번째 실행부터
+>   "other objects depend on it" 에러 발생. 의존 FK를 먼저 drop한 뒤 unique
+>   제약을 재생성하도록 순서 변경.
 > - **D-Day 기능 (2026-07-27)**: `items.show_dday bool` 컬럼 추가(항목이 놓인
 >   셀의 `date`를 D-day 기준일로 재사용). `ItemDetailPanel`에 토글, `MatrixGrid`
 >   셀에 `D-N`/`D-day`/`D+N` 배지(`lib/date.ts`의 `dDayLabel`). **⚠️ `schema.sql`
