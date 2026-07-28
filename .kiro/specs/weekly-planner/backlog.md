@@ -34,10 +34,13 @@
     규모엔 과함, 비추천.
   - (d) **알림형**(피드백 insert 시 이메일/슬랙으로 통지) — Database Webhook +
     Edge Function 필요(서버 코드 최초 도입 명분). 지금 단계엔 오버킬.
-- **결정**: (b) 채택, 구현 완료(2026-07-27, 코드 기준). 리터럴 UID를 public 레포에
-  커밋하지 않기 위해 `current_setting('app.admin_uid', true)`로 변경 — 실제 값은
-  Supabase DB 설정(`alter database ... set app.admin_uid = ...`)과 `VITE_ADMIN_UID`
-  환경변수에만 존재. ⚠️ 둘 다 아직 실제 값 미설정 — `handoff.md` 2장 참고.
+- **결정**: (b) 채택, 구현 완료(2026-07-27). 리터럴 UID를 public 레포에 커밋하지
+  않기 위해 처음엔 `current_setting('app.admin_uid', true)` 세션 GUC로 구현했으나,
+  Supavisor 커넥션 풀러가 기존 커넥션을 재사용해 새 GUC가 반영 안 되는 문제
+  (관리자 계정에서도 피드백 0건으로 보임)를 발견 → `app_settings` 테이블 +
+  `is_admin()` security definer 함수로 교체(매 쿼리마다 실제로 읽으므로 풀링과
+  무관). 실제 값은 `app_settings` 테이블과 `VITE_ADMIN_UID` 환경변수에만 존재.
+  `handoff.md` 2장/7장 참고.
 
 ---
 

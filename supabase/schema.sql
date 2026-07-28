@@ -179,16 +179,43 @@ create table if not exists feedback (
 
 alter table feedback enable row level security;
 
+-- ── 관리자 UID 저장소 (app.admin_uid GUC 대체) ───────────────────
+-- 처음엔 `alter database postgres set app.admin_uid = ...` 세션 GUC로 구현했으나,
+-- PostgREST가 Supavisor 커넥션 풀러를 거쳐 접속하기 때문에 풀이 재사용하는 기존
+-- 커넥션에는 새 GUC 기본값이 반영되지 않아 계속 NULL로 보이는 문제가 있었다
+-- (재연결 전까지 무기한 재현됨). 세션 상태 대신 실제 테이블을 읽도록 변경 —
+-- 매 쿼리마다 조회하므로 풀링 여부와 무관하게 항상 최신 값을 본다.
+create table if not exists app_settings (
+  key   text primary key,
+  value text
+);
+alter table app_settings enable row level security;
+-- app_settings는 API로 직접 노출하지 않음(정책 없음 = 기본 전체 차단).
+-- is_admin()이 security definer로 RLS를 우회해 읽는다.
+
+create or replace function is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid()::text = (select value from app_settings where key = 'admin_uid');
+$$;
+
+-- 관리자 UID 값 설정(한 번만, Supabase SQL Editor에서 직접 — 값은
+-- handoff.md 시크릿 표 참고, public 레포라 리터럴 커밋 안 함):
+--   insert into app_settings (key, value) values ('admin_uid', '<내 UID>')
+--   on conflict (key) do update set value = excluded.value;
+
 drop policy if exists "feedback: 본인 select" on feedback;
 drop policy if exists "feedback: 본인 또는 관리자 select" on feedback;
 drop policy if exists "feedback: 본인 insert" on feedback;
--- 본인 것 또는 관리자(app.admin_uid) 조회 가능. 관리자 UID 값 자체는 여기 없음 —
--- Supabase SQL Editor에서 한 번만 아래 실행(값은 handoff.md 시크릿 표 참고):
---   alter database postgres set app.admin_uid = '<내 UID>';
+-- 본인 것 또는 관리자(is_admin()) 조회 가능.
 create policy "feedback: 본인 또는 관리자 select" on feedback
   for select using (
     auth.uid() = owner_id
-    or auth.uid()::text = current_setting('app.admin_uid', true)
+    or is_admin()
   );
 create policy "feedback: 본인 insert" on feedback
   for insert with check (auth.uid() = owner_id);

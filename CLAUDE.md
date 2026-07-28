@@ -49,11 +49,16 @@ RLS(`owner_id = auth.uid()`)가 담당.
    상세 패널 토글, 매트릭스 배지.
 4. **보류(사용자 지정)**: backlog 우선순위(검색 → 완료 필터 → 드래그 재정렬 →
    PWA) — 통째로 미룸. 각 항목 상세 설계는 아직 없음(한 줄 아이디어 수준).
-5. ~~피드백 확인 방법~~ — **완료(2026-07-27, 코드 기준)**: `feedback` select
-   정책이 `current_setting('app.admin_uid', true)`로 관리자 예외 허용, 설정
+5. ~~피드백 확인 방법~~ — **완료(2026-07-27)**: `feedback` select 정책이
+   `is_admin()`(신규 `app_settings` 테이블 조회)으로 관리자 예외 허용, 설정
    탭에 `FeedbackList` 조건부 뷰 추가(`VITE_ADMIN_UID`와 로그인 UID 일치 시만
-   노출). **⚠️ 실제 UID 값 미설정 상태** — `handoff.md` 2장의 두 단계(DB
-   `app.admin_uid` 설정 + `.env`/Vercel `VITE_ADMIN_UID`) 완료해야 동작.
+   노출). 초기 구현은 `current_setting('app.admin_uid', true)` 세션 GUC였으나,
+   Supavisor 커넥션 풀러가 기존 커넥션을 재사용해 새 GUC 기본값이 반영 안 되는
+   문제(계속 NULL)로 실제 관리자 조회가 0건으로 나오는 버그 발견 → `app_settings`
+   테이블 + `security definer` 함수로 교체, 매 쿼리마다 실제로 읽으므로 풀링과
+   무관하게 동작. **⚠️ `schema.sql` 재실행 필요** + 기존에 `alter database`로
+   설정했다면 무의미하니 아래로 대체:
+   `insert into app_settings (key, value) values ('admin_uid', '<내 UID>') on conflict (key) do update set value = excluded.value;`
    (`backlog.md` 1.2)
 6. 낙서장 정비 (`backlog.md` 2.4)
    - ~~목록 미리보기 숨기기~~ — **완료(2026-07-27, 메모별 선택형)**: 전체

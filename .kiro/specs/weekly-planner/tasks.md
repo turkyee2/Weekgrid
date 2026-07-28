@@ -25,13 +25,20 @@
 >   셀의 `date`를 D-day 기준일로 재사용). `ItemDetailPanel`에 토글, `MatrixGrid`
 >   셀에 `D-N`/`D-day`/`D+N` 배지(`lib/date.ts`의 `dDayLabel`). **⚠️ `schema.sql`
 >   재실행 필요**(v3 마이그레이션과 함께). (`CLAUDE.md` 다음 우선순위 3번)
-> - **피드백 조회 기능 (2026-07-27)**: `feedback` select 정책에 관리자 예외 추가
->   (`current_setting('app.admin_uid', true)`, public 레포라 리터럴 UID 대신
->   DB 커스텀 설정 사용), `api/feedback.ts`에 `listFeedback()`, 설정 탭에
->   `FeedbackList` 컴포넌트(로그인 UID가 `VITE_ADMIN_UID`와 일치할 때만 노출).
->   **⚠️ 실제 UID 값 미설정**(`app.admin_uid` DB 설정 + `.env`/Vercel
->   `VITE_ADMIN_UID`) — 설정 전엔 목록이 조용히 숨겨짐. (`CLAUDE.md` 다음
->   우선순위 5번, `backlog.md` 1.2)
+> - **피드백 조회 기능 (2026-07-27)**: `feedback` select 정책에 관리자 예외 추가,
+>   `api/feedback.ts`에 `listFeedback()`, 설정 탭에 `FeedbackList` 컴포넌트
+>   (로그인 UID가 `VITE_ADMIN_UID`와 일치할 때만 노출).
+> - **버그 수정 (2026-07-27, 관리자 예외 미동작)**: 위 관리자 예외를 처음엔
+>   `current_setting('app.admin_uid', true)` 세션 GUC로 구현했는데, Supabase가
+>   PostgREST를 Supavisor 풀러 뒤에 두는 탓에 풀이 재사용하는 기존 커넥션은
+>   새 GUC 기본값을 못 봐서(`current_setting`이 계속 NULL) 관리자 계정에서도
+>   피드백이 0건으로 보이는 버그가 있었다. `app_settings` 테이블 +
+>   `is_admin()` security definer 함수로 교체해 해결(매 쿼리마다 실제로 테이블을
+>   읽으므로 풀링과 무관). **⚠️ `schema.sql` 재실행 필요** + Supabase SQL
+>   Editor에서 `insert into app_settings (key, value) values ('admin_uid',
+>   '<내 UID>') on conflict (key) do update set value = excluded.value;` 실행
+>   필요(기존에 `alter database`로 설정했다면 더는 안 쓰이니 무시).
+>   (`CLAUDE.md` 다음 우선순위 5번, `backlog.md` 1.2)
 > - **낙서장 정비 1단계 (2026-07-27, 메모별 선택형으로 수정)**: 처음엔 전체
 >   미리보기를 일괄 제거했으나 "메모마다 선택"하도록 범위 변경 —
 >   `notes.hide_preview bool` 컬럼 추가, `NotesPage.tsx` 목록에 자물쇠 토글

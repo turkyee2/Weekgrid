@@ -36,12 +36,19 @@
   git push
   ```
 - **[신규] 피드백 조회 기능 (2026-07-27 추가, backlog 1.2)**: `feedback` select 정책이
-  `app.admin_uid` DB 설정을 참조하도록 바뀜(`schema.sql` 재실행 필요, 위 v3와
-  같은 배치로 가능) + 아래 두 곳에 실제 UID 값 설정 필요(둘 다 이 저장소엔 없음):
-  1. Supabase SQL Editor: `alter database postgres set app.admin_uid = '<내 UID>';`
+  `is_admin()` 함수(신규 `app_settings` 테이블 조회)를 참조하도록 바뀜(`schema.sql`
+  재실행 필요, 위 v3와 같은 배치로 가능) + 아래 두 곳에 실제 UID 값 설정 필요
+  (둘 다 이 저장소엔 없음):
+  1. Supabase SQL Editor: `insert into app_settings (key, value) values ('admin_uid', '<내 UID>') on conflict (key) do update set value = excluded.value;`
   2. 로컬 `.env`와 Vercel 환경변수에 `VITE_ADMIN_UID=<내 UID>` 추가(후자는 Redeploy 필요)
   둘 다 안 하면 기능 자체는 조용히 숨겨짐(에러 없음) — 설정 탭 피드백 섹션에
   목록이 안 보일 뿐.
+  - **[버그 이력]** 처음엔 1번을 `alter database postgres set app.admin_uid = ...`
+    세션 GUC로 구현했으나, PostgREST가 Supavisor 풀러를 거쳐 접속하는 탓에
+    풀이 재사용하는 기존 커넥션엔 새 GUC 기본값이 반영되지 않아
+    (`current_setting`이 계속 NULL) 관리자 계정에서도 피드백이 0건으로 보이는
+    문제가 있었다. 세션 상태 대신 매번 실제로 읽는 테이블(`app_settings`)로
+    교체해 해결.
 
 ## 3. 로컬에서 다시 시작하는 법
 
@@ -95,10 +102,10 @@ GitHub에 없는 것 = `.env`, `node_modules/`, `dist/` 뿐. 앞의 둘/셋은 �
 |---|---|---|
 | Supabase `service_role` key | Supabase → Settings → API | **절대 프론트/저장소 금지.** 현재 미사용(향후 Edge Function 때만 서버측) |
 | Supabase DB 비밀번호 | Supabase → Settings → Database | 대시보드에서만 |
-| Vercel 환경변수 | Vercel → Project → Settings → Environment Variables | `VITE_SUPABASE_URL`/`ANON_KEY` 등록됨. `VITE_ADMIN_UID`도 추가 필요(피드백 조회, backlog 1.2). 변경 시 Redeploy 필요 |
+| Vercel 환경변수 | Vercel → Project → Settings → Environment Variables | `VITE_SUPABASE_URL`/`ANON_KEY`/`VITE_ADMIN_UID` 등록됨(피드백 조회, backlog 1.2). 변경 시 Redeploy 필요 |
+| `app_settings` 테이블의 `admin_uid` 값 | Supabase SQL Editor에서 1회 실행: `insert into app_settings (key, value) values ('admin_uid', '<내 UID>') on conflict (key) do update set value = excluded.value;` | 관리자 UID를 `feedback` RLS 정책의 `is_admin()` 함수가 읽음(schema.sql엔 리터럴 없음, public 레포라 커밋 안 함). `VITE_ADMIN_UID`(위 Vercel 행)와 같은 값이어야 함. 예전엔 `app.admin_uid` DB 커스텀 설정(세션 GUC)이었으나 Supavisor 풀링 문제로 테이블 방식으로 교체(2026-07-27) |
 | GitHub PAT(push 토큰) | 발급자 로컬/비밀번호 관리자 | 비밀번호처럼 취급. 유출 시 GitHub에서 revoke 후 재발급. 권한 최소(Weekgrid Contents R/W) |
 | Google OAuth client secret | Supabase Auth provider 설정 + Google Cloud Console | 구글 로그인 쓸 때만. 대시보드에서만 |
-| `app.admin_uid` (DB 커스텀 설정) | Supabase SQL Editor에서 1회 실행: `alter database postgres set app.admin_uid = '<내 UID>';` | 관리자 UID를 `feedback` RLS 정책이 읽음(schema.sql엔 리터럴 없음, public 레포라 커밋 안 함). `VITE_ADMIN_UID`(위 Vercel 행)와 같은 값이어야 함 |
 
 ### 연결된 외부 프로젝트 (참고)
 - GitHub 리포: `https://github.com/turkyee2/Weekgrid`
