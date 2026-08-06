@@ -11,10 +11,12 @@ import ItemNote from '../components/ItemNote'
 import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import CategoryFilter from '../components/CategoryFilter'
+import OverdueBadge from '../components/OverdueBadge'
 import SettingsModal from '../components/SettingsModal'
 import Toast from '../components/Toast'
 import GridSkeleton from '../components/GridSkeleton'
 import { useMatrixData } from '../hooks/useMatrixData'
+import { useOverdueItems } from '../hooks/useOverdueItems'
 import { cellItems } from '../lib/cellMap'
 import {
   addDays,
@@ -77,6 +79,9 @@ export default function MatrixPage() {
     [settings.day_rollover_hour],
   )
 
+  // 지난 미완료 항목 (헤더 배지, backlog 1.2) — 표시 전용, 현재 조회 범위와 무관
+  const overdue = useOverdueItems(today)
+
   // 렌더용 날짜 범위 (주간 7일 / 월간 6주 그리드 + monthStart/monthEnd)
   const anchorKey = logicalToday(anchor, 0) // 안정적인 의존성 키
   const dateRange = useMemo(
@@ -111,6 +116,15 @@ export default function MatrixPage() {
     setViewMode('week')
   }, [])
 
+  // 지난 미완료 배지 목록에서 항목 클릭 → 그 항목이 있는 주로 이동 + 상세 패널 오픈
+  // (날짜를 옮기고 싶으면 상세 패널에서 직접 바꾼다, backlog 1.2)
+  const handleJumpToItem = useCallback((it: Item) => {
+    userToggled.current = true
+    setAnchor(parseDate(it.date))
+    setViewMode('week')
+    setSelectedItemId(it.id)
+  }, [])
+
   const handleAddItem = useCallback(
     async (categoryId: string, date: string, content: string) => {
       const existing = cellItems(cellMap, categoryId, date)
@@ -140,12 +154,14 @@ export default function MatrixPage() {
       upsertItemLocal({ ...prev, ...patch, updated_at: new Date().toISOString() })
       try {
         await updateItem(id, patch)
+        // done/date 변경은 지난 미완료 배지에 영향을 줄 수 있음
+        if (patch.done !== undefined || patch.date !== undefined) overdue.reload()
       } catch {
         upsertItemLocal(prev)
         setToast('변경에 실패했습니다.')
       }
     },
-    [items, upsertItemLocal],
+    [items, upsertItemLocal, overdue],
   )
 
   const handleToggleDone = useCallback(
@@ -159,18 +175,26 @@ export default function MatrixPage() {
       removeItemLocal(id)
       try {
         await removeItem(id)
+        overdue.reload()
       } catch {
         if (prev) upsertItemLocal(prev)
         setToast('삭제에 실패했습니다.')
       }
     },
-    [items, removeItemLocal, upsertItemLocal],
+    [items, removeItemLocal, upsertItemLocal, overdue],
   )
 
   return (
     <div className="min-h-full bg-white">
       <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">주간 플래너</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-slate-800">주간 플래너</h1>
+          <OverdueBadge
+            items={overdue.items}
+            categories={categories}
+            onJump={handleJumpToItem}
+          />
+        </div>
         <nav className="flex items-center gap-4 text-sm text-slate-500">
           <button
             type="button"

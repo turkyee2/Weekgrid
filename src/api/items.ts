@@ -21,6 +21,18 @@ export async function listItemsByRange(
   return data ?? []
 }
 
+/** beforeDate 이전 날짜의 미완료 항목 (헤더 배지, backlog 1.2). 날짜 오름차순. */
+export async function listOverdueItems(beforeDate: string): Promise<Item[]> {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .lt('date', beforeDate)
+    .eq('done', false)
+    .order('date', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 /** 사용자의 전체 항목 조회 (CSV 내보내기용, 태스크 22). 날짜 오름차순. */
 export async function listAllItems(): Promise<Item[]> {
   const { data, error } = await supabase

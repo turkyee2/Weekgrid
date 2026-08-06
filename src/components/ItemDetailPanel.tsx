@@ -75,9 +75,18 @@ export default function ItemDetailPanel({
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <span className="text-xs text-slate-400">
-            {categoryName} · {item.date}
-          </span>
+          <div className="flex items-center gap-1 text-xs text-slate-400">
+            <span>{categoryName}</span>
+            <span>·</span>
+            <input
+              type="date"
+              value={item.date}
+              onChange={(e) => {
+                if (e.target.value) void onPatch(item.id, { date: e.target.value })
+              }}
+              className="rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-slate-500 outline-none hover:border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"
+            />
+          </div>
           <button
             type="button"
             onClick={onClose}
