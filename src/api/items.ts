@@ -33,13 +33,14 @@ export async function listOverdueItems(beforeDate: string): Promise<Item[]> {
   return data ?? []
 }
 
-/** D-day로 지정되고 아직 완료되지 않은 항목 (헤더 배너, backlog 7-B). 날짜 오름차순. */
+/** D-day로 지정된 항목 (헤더 배너, backlog 7-B). 완료 여부와 무관 — 완료된
+ * 항목도 배너에 고정(dday_pinned)했다면 계속 보여야 하므로 done으로 거르지
+ * 않는다. 날짜 오름차순. */
 export async function listDdayItems(): Promise<Item[]> {
   const { data, error } = await supabase
     .from('items')
     .select('*')
     .eq('show_dday', true)
-    .eq('done', false)
     .order('date', { ascending: true })
   if (error) throw error
   return data ?? []

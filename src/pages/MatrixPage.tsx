@@ -158,10 +158,10 @@ export default function MatrixPage() {
       upsertItemLocal({ ...prev, ...patch, updated_at: new Date().toISOString() })
       try {
         await updateItem(id, patch)
-        // done/date 변경은 지난 미완료 배지에, done/date/show_dday/dday_pinned 변경은 D-day 배너에 영향을 줄 수 있음
+        // done/date 변경은 지난 미완료 배지에, date/show_dday/dday_pinned 변경은
+        // D-day 배너에 영향을 줄 수 있음(배너는 완료 여부와 무관하게 조회하므로 done은 제외)
         if (patch.done !== undefined || patch.date !== undefined) overdue.reload()
         if (
-          patch.done !== undefined ||
           patch.date !== undefined ||
           patch.show_dday !== undefined ||
           patch.dday_pinned !== undefined
