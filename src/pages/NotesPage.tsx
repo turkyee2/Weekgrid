@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createNote, listNotes, removeNote, updateNote } from '../api/notes'
 import type { Note } from '../api/types'
@@ -6,6 +6,12 @@ import LogoutButton from '../components/LogoutButton'
 
 // 낙서장 화면 (태스크 21: 목록 + 생성/편집/삭제)
 // 좌측 목록에서 메모를 고르면 우측 편집기에서 제목/본문을 수정한다.
+// 자동저장: ItemNote.tsx 와 같은 debounce(600ms) 패턴(backlog 2.4).
+// 노트 전환 시 대기 중인 저장은 취소하지 않고 즉시 flush 한다(공유 타이머라
+// 그냥 취소하면 방금 떠난 메모의 마지막 입력이 유실된다). 되돌리기 버튼은
+// 넣었다가 제거함 — 저장 완료마다 `selected` 참조가 바뀌어 상태가 뜨자마자
+// 초기화되는 버그가 있었고, 브라우저 네이티브 Ctrl+Z가 겹치는 영역을 이미
+// 커버해 버그를 고칠 값어치가 낮다고 판단(backlog 2.4).
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,14 +22,18 @@ export default function NotesPage() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    'idle',
+  )
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pending = useRef<{ note: Note; title: string; body: string } | null>(
+    null,
+  )
 
   const selected = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
     [notes, selectedId],
   )
-  const dirty = selected
-    ? title !== selected.title || body !== selected.body
-    : false
 
   useEffect(() => {
     let alive = true
@@ -46,7 +56,19 @@ export default function NotesPage() {
   useEffect(() => {
     setTitle(selected?.title ?? '')
     setBody(selected?.body ?? '')
+    setStatus('idle')
   }, [selected])
+
+  // 선택(selectedId)이 바뀌기 직전, 대기 중인 자동저장이 있으면 즉시 flush.
+  // 타이머가 하나뿐이라 취소만 하면 방금 떠난 메모의 마지막 입력이 사라진다.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      const p = pending.current
+      pending.current = null
+      if (p) void persist(p.note, p.title, p.body)
+    }
+  }, [selectedId])
 
   function upsertLocal(note: Note) {
     setNotes((prev) => {
@@ -71,18 +93,44 @@ export default function NotesPage() {
     }
   }
 
-  async function handleSave() {
-    if (!selected || !dirty) return
-    setBusy(true)
-    setError('')
+  async function persist(note: Note, t: string, b: string) {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setStatus('saving')
     try {
-      const updated = await updateNote(selected.id, { title, body })
+      const updated = await updateNote(note.id, { title: t, body: b })
       upsertLocal(updated)
+      setStatus('saved')
     } catch (e) {
       setError(e instanceof Error ? e.message : '저장에 실패했습니다.')
-    } finally {
-      setBusy(false)
+      setStatus('error')
     }
+  }
+
+  function scheduleSave(note: Note, nextTitle: string, nextBody: string) {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    pending.current = { note, title: nextTitle, body: nextBody }
+    setStatus('saving')
+    saveTimer.current = setTimeout(() => {
+      pending.current = null
+      void persist(note, nextTitle, nextBody)
+    }, 600)
+  }
+
+  function handleTitleChange(next: string) {
+    setTitle(next)
+    if (selected) scheduleSave(selected, next, body)
+  }
+
+  function handleBodyChange(next: string) {
+    setBody(next)
+    if (selected) scheduleSave(selected, title, next)
+  }
+
+  // Ctrl/Cmd+S: 디바운스 대기 없이 즉시 저장
+  async function flushSave() {
+    if (!selected) return
+    pending.current = null
+    await persist(selected, title, body)
   }
 
   async function handleTogglePreview(n: Note) {
@@ -189,32 +237,35 @@ export default function NotesPage() {
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
                   e.preventDefault()
-                  if (dirty && !busy) void handleSave()
+                  void flushSave()
                 }
               }}
             >
+              <div className="flex items-center justify-end">
+                <span className="text-xs text-slate-400">
+                  {status === 'saving'
+                    ? '저장 중…'
+                    : status === 'saved'
+                      ? '저장됨'
+                      : status === 'error'
+                        ? '저장 실패'
+                        : ''}
+                </span>
+              </div>
               <input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="제목"
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <textarea
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={(e) => handleBodyChange(e.target.value)}
                 placeholder="자유롭게 적어두세요…"
                 rows={16}
                 className="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={busy || !dirty}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                >
-                  {dirty ? '저장' : '저장됨'}
-                </button>
                 <button
                   type="button"
                   onClick={handleDelete}
