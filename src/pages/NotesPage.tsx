@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createNote, listNotes, removeNote, updateNote } from '../api/notes'
-import type { Note } from '../api/types'
+import {
+  createNoteFolder,
+  ensureArchiveFolder,
+  listNoteFolders,
+  removeNoteFolder,
+} from '../api/noteFolders'
+import type { Note, NoteFolder } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 
 function PinIcon({ className }: { className?: string }) {
@@ -67,6 +73,9 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [sortMode, setSortMode] = useState<'recent' | 'title'>('recent')
+  const [folders, setFolders] = useState<NoteFolder[]>([])
+  // null = 전체(보관함 제외). 그 외엔 폴더 id(보관함 포함)로 필터
+  const [folderFilter, setFolderFilter] = useState<string | null>(null)
 
   // 편집 중인 값 (선택된 메모의 사본)
   const [title, setTitle] = useState('')
@@ -85,35 +94,53 @@ export default function NotesPage() {
     [notes, selectedId],
   )
 
-  // 검색(제목·본문) → 고정 메모 우선 → 선택한 정렬 기준
+  const archiveFolder = useMemo(
+    () => folders.find((f) => f.is_archive) ?? null,
+    [folders],
+  )
+  const customFolders = useMemo(
+    () => folders.filter((f) => !f.is_archive),
+    [folders],
+  )
+
+  // 폴더 필터(전체=보관함 제외) → 검색(제목·본문) → 고정 메모 우선 → 선택한 정렬 기준
   const visibleNotes = useMemo(() => {
+    const byFolder =
+      folderFilter === null
+        ? notes.filter((n) => n.folder_id !== archiveFolder?.id)
+        : notes.filter((n) => n.folder_id === folderFilter)
     const q = search.trim().toLowerCase()
     const filtered = q
-      ? notes.filter(
+      ? byFolder.filter(
           (n) =>
             n.title.toLowerCase().includes(q) ||
             n.body.toLowerCase().includes(q),
         )
-      : notes
+      : byFolder
     return [...filtered].sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
       return sortMode === 'title'
         ? a.title.localeCompare(b.title)
         : b.updated_at.localeCompare(a.updated_at)
     })
-  }, [notes, search, sortMode])
+  }, [notes, search, sortMode, folderFilter, archiveFolder])
 
   useEffect(() => {
     let alive = true
-    listNotes()
-      .then((data) => {
+    ;(async () => {
+      try {
+        const [notesData] = await Promise.all([listNotes(), ensureArchiveFolder()])
         if (!alive) return
-        setNotes(data)
-      })
-      .catch((e) =>
-        alive && setError(e instanceof Error ? e.message : '불러오지 못했습니다.'),
-      )
-      .finally(() => alive && setLoading(false))
+        setNotes(notesData)
+        const foldersData = await listNoteFolders()
+        if (!alive) return
+        setFolders(foldersData)
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
     return () => {
       alive = false
     }
@@ -150,13 +177,57 @@ export default function NotesPage() {
     setBusy(true)
     setError('')
     try {
-      const created = await createNote({ title: '', body: '' })
+      const created = await createNote({
+        title: '',
+        body: '',
+        folder_id: folderFilter,
+      })
       upsertLocal(created)
       setSelectedId(created.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '생성에 실패했습니다.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleCreateFolder() {
+    const name = window.prompt('폴더 이름을 입력하세요')?.trim()
+    if (!name) return
+    setError('')
+    try {
+      const created = await createNoteFolder(name)
+      setFolders((prev) => [...prev, created])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '폴더 생성에 실패했습니다.')
+    }
+  }
+
+  async function handleDeleteFolder(f: NoteFolder) {
+    const ok = window.confirm(
+      `"${f.name}" 폴더를 삭제할까요? 안의 메모는 삭제되지 않고 폴더 밖으로 나갑니다.`,
+    )
+    if (!ok) return
+    setError('')
+    try {
+      await removeNoteFolder(f.id)
+      setFolders((prev) => prev.filter((x) => x.id !== f.id))
+      setNotes((prev) =>
+        prev.map((n) => (n.folder_id === f.id ? { ...n, folder_id: null } : n)),
+      )
+      if (folderFilter === f.id) setFolderFilter(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '폴더 삭제에 실패했습니다.')
+    }
+  }
+
+  async function handleMoveFolder(n: Note, folderId: string | null) {
+    setError('')
+    try {
+      const updated = await updateNote(n.id, { folder_id: folderId })
+      upsertLocal(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '폴더 이동에 실패했습니다.')
     }
   }
 
@@ -264,6 +335,63 @@ export default function NotesPage() {
             + 새 메모
           </button>
 
+          <div className="mb-2 flex flex-wrap items-center gap-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setFolderFilter(null)}
+              className={`rounded px-1.5 py-0.5 ${
+                folderFilter === null
+                  ? 'bg-indigo-50 text-indigo-600'
+                  : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              전체
+            </button>
+            {customFolders.map((f) => (
+              <span key={f.id} className="group inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setFolderFilter(f.id)}
+                  className={`rounded px-1.5 py-0.5 ${
+                    folderFilter === f.id
+                      ? 'bg-indigo-50 text-indigo-600'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteFolder(f)}
+                  title="폴더 삭제"
+                  className="hidden px-0.5 text-slate-300 hover:text-slate-600 group-hover:inline"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {archiveFolder && (
+              <button
+                type="button"
+                onClick={() => setFolderFilter(archiveFolder.id)}
+                className={`rounded px-1.5 py-0.5 ${
+                  folderFilter === archiveFolder.id
+                    ? 'bg-indigo-50 text-indigo-600'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                보관함
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleCreateFolder()}
+              className="rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+            >
+              + 폴더
+            </button>
+          </div>
+
           <input
             type="text"
             value={search}
@@ -298,11 +426,14 @@ export default function NotesPage() {
           </div>
 
           {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
-          {!loading && notes.length === 0 && (
-            <p className="text-sm text-slate-400">메모가 없습니다.</p>
-          )}
-          {!loading && notes.length > 0 && visibleNotes.length === 0 && (
-            <p className="text-sm text-slate-400">검색 결과가 없습니다.</p>
+          {!loading && visibleNotes.length === 0 && (
+            <p className="text-sm text-slate-400">
+              {search
+                ? '검색 결과가 없습니다.'
+                : folderFilter !== null
+                  ? '이 폴더에 메모가 없습니다.'
+                  : '메모가 없습니다.'}
+            </p>
           )}
           <ul className="space-y-1">
             {visibleNotes.map((n) => (
@@ -359,23 +490,42 @@ export default function NotesPage() {
               }}
             >
               <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => void handleTogglePreview(selected)}
-                  title={
-                    selected.hide_preview
-                      ? '목록 미리보기 다시 보이기'
-                      : '목록 미리보기 숨기기'
-                  }
-                  className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
-                    selected.hide_preview
-                      ? 'text-slate-600'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <LockIcon locked={selected.hide_preview} className="size-3.5" />
-                  비공개
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleTogglePreview(selected)}
+                    title={
+                      selected.hide_preview
+                        ? '목록 미리보기 다시 보이기'
+                        : '목록 미리보기 숨기기'
+                    }
+                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+                      selected.hide_preview
+                        ? 'text-slate-600'
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <LockIcon locked={selected.hide_preview} className="size-3.5" />
+                    비공개
+                  </button>
+                  <select
+                    value={selected.folder_id ?? ''}
+                    onChange={(e) =>
+                      void handleMoveFolder(selected, e.target.value || null)
+                    }
+                    className="rounded border border-slate-200 bg-transparent px-1 py-0.5 text-xs text-slate-500 outline-none focus:border-indigo-500"
+                  >
+                    <option value="">폴더 없음</option>
+                    {customFolders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                    {archiveFolder && (
+                      <option value={archiveFolder.id}>보관함</option>
+                    )}
+                  </select>
+                </div>
                 <span className="text-xs text-slate-400">
                   {status === 'saving'
                     ? '저장 중…'

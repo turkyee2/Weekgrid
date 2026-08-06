@@ -80,6 +80,20 @@
 >   `<input type="date">`로 바꿔 항목 날짜를 직접 옮길 수 있게 함(이전엔
 >   방법 자체가 없었음) — 이게 "선택적으로 옮기기"의 실제 경로. 스키마 변경
 >   없음. (`backlog.md` 1.2)
+> - **D-day 배너 (2026-08-06, 완료)**: 셀 안 작은 배지로는 눈에 안 띈다는
+>   피드백으로 방향 재설계 — `api/items.ts`에 `listDdayItems()`(show_dday=
+>   true AND done=false, 전체 기간) 추가, `hooks/useDdayItems.ts`로 감싸고
+>   `MatrixPage.tsx` 헤더 아래 `DdayBanner.tsx`(상시 카드 배너, 클릭 시
+>   `OverdueBadge`와 동일하게 그 주로 이동+상세 패널 오픈). 기존 셀 배지는
+>   유지. 스키마 변경 없음. (`backlog.md` 7-B)
+> - **낙서장 폴더 + 보관함 (2026-08-06, 완료)**: `note_folders` 테이블(id,
+>   owner_id, name, sort_order, is_archive, parent_id — 트리 대응 스키마,
+>   지금은 평평하게만 사용) + `notes.folder_id`(소유자 검증 복합 FK로 처음
+>   부터 생성). 보관함은 별도 컬럼이 아니라 `is_archive=true`인 특수 폴더
+>   (사용자당 1개, 자동 생성) — "전체" 필터가 보관함 메모만 제외. `api/
+>   noteFolders.ts`, `NotesPage.tsx`에 폴더 칩 목록 + 편집기 상단 폴더 이동
+>   select. 폴더 삭제는 메모를 지우지 않고 `folder_id`만 해제. **⚠️
+>   schema.sql 대시보드 재실행 필요.** (`backlog.md` 2.4)
 >
 > 아래 체크박스는 최초 계획 시점의 원본이며, 실제 완료 여부는 위 요약과 git 커밋 이력을 기준으로 한다.
 

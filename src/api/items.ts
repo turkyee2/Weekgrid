@@ -33,6 +33,18 @@ export async function listOverdueItems(beforeDate: string): Promise<Item[]> {
   return data ?? []
 }
 
+/** D-day로 지정되고 아직 완료되지 않은 항목 (헤더 배너, backlog 7-B). 날짜 오름차순. */
+export async function listDdayItems(): Promise<Item[]> {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('show_dday', true)
+    .eq('done', false)
+    .order('date', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 /** 사용자의 전체 항목 조회 (CSV 내보내기용, 태스크 22). 날짜 오름차순. */
 export async function listAllItems(): Promise<Item[]> {
   const { data, error } = await supabase

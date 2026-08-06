@@ -53,7 +53,21 @@ export interface Note {
   hide_preview: boolean
   /** true면 목록 상단에 고정 */
   pinned: boolean
+  /** 소속 폴더 id. null이면 폴더 없음(전체 목록) */
+  folder_id: string | null
   updated_at: string
+}
+
+export interface NoteFolder {
+  id: string
+  owner_id: string
+  name: string
+  sort_order: number
+  /** true면 보관함 폴더(사용자당 최대 1개, 기본 목록에서 제외) */
+  is_archive: boolean
+  /** 지금은 항상 null(평평한 목록). 트리 확장 여지만 남겨둠 */
+  parent_id: string | null
+  created_at: string
 }
 
 export interface Feedback {

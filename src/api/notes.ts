@@ -41,6 +41,7 @@ export async function createNoteForItem(itemId: string): Promise<Note> {
 export async function createNote(input: {
   title: string
   body: string
+  folder_id?: string | null
 }): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
@@ -54,7 +55,9 @@ export async function createNote(input: {
 /** 제목/본문 수정. updated_at 은 DB 트리거가 갱신. */
 export async function updateNote(
   id: string,
-  patch: Partial<Pick<Note, 'title' | 'body' | 'hide_preview' | 'pinned'>>,
+  patch: Partial<
+    Pick<Note, 'title' | 'body' | 'hide_preview' | 'pinned' | 'folder_id'>
+  >,
 ): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')

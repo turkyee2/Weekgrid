@@ -12,11 +12,13 @@ import MonthCalendar from '../components/MonthCalendar'
 import ViewHeader from '../components/ViewHeader'
 import CategoryFilter from '../components/CategoryFilter'
 import OverdueBadge from '../components/OverdueBadge'
+import DdayBanner from '../components/DdayBanner'
 import SettingsModal from '../components/SettingsModal'
 import Toast from '../components/Toast'
 import GridSkeleton from '../components/GridSkeleton'
 import { useMatrixData } from '../hooks/useMatrixData'
 import { useOverdueItems } from '../hooks/useOverdueItems'
+import { useDdayItems } from '../hooks/useDdayItems'
 import { cellItems } from '../lib/cellMap'
 import {
   addDays,
@@ -81,6 +83,8 @@ export default function MatrixPage() {
 
   // 지난 미완료 항목 (헤더 배지, backlog 1.2) — 표시 전용, 현재 조회 범위와 무관
   const overdue = useOverdueItems(today)
+  // D-day 지정 항목 (헤더 아래 배너, backlog 7-B) — 표시 전용, 현재 조회 범위와 무관
+  const dday = useDdayItems()
 
   // 렌더용 날짜 범위 (주간 7일 / 월간 6주 그리드 + monthStart/monthEnd)
   const anchorKey = logicalToday(anchor, 0) // 안정적인 의존성 키
@@ -154,14 +158,16 @@ export default function MatrixPage() {
       upsertItemLocal({ ...prev, ...patch, updated_at: new Date().toISOString() })
       try {
         await updateItem(id, patch)
-        // done/date 변경은 지난 미완료 배지에 영향을 줄 수 있음
+        // done/date 변경은 지난 미완료 배지에, done/date/show_dday 변경은 D-day 배너에 영향을 줄 수 있음
         if (patch.done !== undefined || patch.date !== undefined) overdue.reload()
+        if (patch.done !== undefined || patch.date !== undefined || patch.show_dday !== undefined)
+          dday.reload()
       } catch {
         upsertItemLocal(prev)
         setToast('변경에 실패했습니다.')
       }
     },
-    [items, upsertItemLocal, overdue],
+    [items, upsertItemLocal, overdue, dday],
   )
 
   const handleToggleDone = useCallback(
@@ -176,12 +182,13 @@ export default function MatrixPage() {
       try {
         await removeItem(id)
         overdue.reload()
+        dday.reload()
       } catch {
         if (prev) upsertItemLocal(prev)
         setToast('삭제에 실패했습니다.')
       }
     },
-    [items, removeItemLocal, upsertItemLocal, overdue],
+    [items, removeItemLocal, upsertItemLocal, overdue, dday],
   )
 
   return (
@@ -211,6 +218,12 @@ export default function MatrixPage() {
       </header>
 
       <main className="px-6 py-6">
+        <DdayBanner
+          items={dday.items}
+          categories={categories}
+          today={today}
+          onJump={handleJumpToItem}
+        />
         <div className="mb-4">
           <ViewHeader
             label={viewLabel(viewMode, anchor)}

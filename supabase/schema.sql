@@ -292,3 +292,56 @@ alter table notes add column if not exists hide_preview bool not null default fa
 
 -- 자주 보는 메모를 목록 상단에 고정. 검색/정렬은 클라이언트에서 처리한다.
 alter table notes add column if not exists pinned bool not null default false;
+
+
+-- ============================================================
+-- 낙서장 폴더 + 보관함 (재실행 안전, backlog 2.4)
+-- ============================================================
+
+-- 지금은 평평한 목록만 쓰지만, 나중에 트리로 확장할 여지를 남기기 위해
+-- parent_id를 처음부터 넣어둔다(지금 UI는 항상 null로만 씀).
+create table if not exists note_folders (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null default auth.uid()
+             references auth.users(id) on delete cascade,
+  name       text not null,
+  sort_order int  not null default 0,
+  is_archive bool not null default false,
+  parent_id  uuid null references note_folders(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists note_folders_owner_sort_idx
+  on note_folders (owner_id, sort_order);
+-- 사용자당 보관함 폴더는 최대 1개
+create unique index if not exists note_folders_one_archive_per_owner
+  on note_folders (owner_id) where is_archive;
+
+alter table note_folders enable row level security;
+
+drop policy if exists "note_folders: 본인 select" on note_folders;
+drop policy if exists "note_folders: 본인 insert" on note_folders;
+drop policy if exists "note_folders: 본인 update" on note_folders;
+drop policy if exists "note_folders: 본인 delete" on note_folders;
+create policy "note_folders: 본인 select" on note_folders
+  for select using (auth.uid() = owner_id);
+create policy "note_folders: 본인 insert" on note_folders
+  for insert with check (auth.uid() = owner_id);
+create policy "note_folders: 본인 update" on note_folders
+  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "note_folders: 본인 delete" on note_folders
+  for delete using (auth.uid() = owner_id);
+
+-- notes.folder_id: 처음부터 소유자까지 검증하는 복합 FK로 생성한다
+-- (items.category_id 때 단일 FK로 만들었다가 나중에 복합 FK로 바꾸느라 겪은
+--  재실행 문제를 반복하지 않기 위해 — CLAUDE.md 기술부채 참고).
+-- 폴더 삭제는 소속 메모를 지우지 않고 해제만 해야 하므로 ON DELETE 액션을
+-- 걸지 않는다(애플리케이션이 삭제 전에 notes.folder_id를 먼저 null로 갱신).
+alter table notes add column if not exists folder_id uuid null;
+
+-- 재실행 시 복합 FK가 아래 unique 제약에 의존하므로, unique를 다시 만들려면
+-- FK를 먼저 drop해야 한다("other objects depend on it" 에러 방지).
+alter table notes drop constraint if exists notes_folder_id_owner_fkey;
+alter table note_folders drop constraint if exists note_folders_id_owner_key;
+alter table note_folders add constraint note_folders_id_owner_key unique (id, owner_id);
+alter table notes add constraint notes_folder_id_owner_fkey
+  foreign key (folder_id, owner_id) references note_folders(id, owner_id);
