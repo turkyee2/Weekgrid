@@ -64,46 +64,6 @@
 
 전체 DDL + RLS 정책은 [`supabase/schema.sql`](supabase/schema.sql) 참고 (재실행 안전, idempotent).
 
-## 로컬 개발
-
-### 사전 준비
-- Node.js 20+
-- Supabase 프로젝트 (무료 플랜으로 충분)
-
-### 1) 의존성 설치
-```bash
-npm install
-```
-
-### 2) 환경변수 설정
-```bash
-cp .env.example .env
-```
-`.env`를 열어 Supabase 대시보드 > Project Settings > API 의 값으로 채운다:
-```
-VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon public key>
-```
-> `.env`는 `.gitignore`에 포함되어 커밋되지 않는다. anon key는 공개되어도 되는 키다.
-
-### 3) 데이터베이스 스키마 적용
-Supabase 대시보드 > SQL Editor 에 [`supabase/schema.sql`](supabase/schema.sql) 전체를 붙여넣고 실행.
-(재실행해도 안전한 구문이라 스키마 변경 시 다시 실행하면 된다.)
-
-### 4) 개발 서버 실행
-```bash
-npm run dev
-```
-
-## 사용 가능한 명령
-
-| 명령 | 설명 |
-|---|---|
-| `npm run dev` | 개발 서버 (HMR) |
-| `npm run build` | 타입체크 + 프로덕션 빌드 (`dist/`) |
-| `npm run preview` | 빌드 결과 로컬 미리보기 |
-| `npm run test` | Vitest 단위 테스트 |
-| `npm run lint` | oxlint 정적 분석 |
 
 ## 사용법 개요
 
@@ -141,14 +101,9 @@ supabase/schema.sql   전체 DB 스키마 + RLS
 
 ## 로드맵 (향후, 미구현)
 
-- 항목 중요도 강조, 공휴일 표시, 메모 서식(리치 텍스트)
 - Edge Function 기반 좁은 AI(자연어 항목 추가, 주간 회고 요약)
 - 대량 데이터 페이지네이션, PWA / 앱 · 위젯
 
-## 보안 참고
-
-- 사용자 간 데이터는 RLS로 격리되지만, **프로젝트 소유자(운영자)는 DB를 열람할 수 있다**(평문 저장).
-  운영자조차 못 보는 수준이 필요하면 클라이언트측 종단간 암호화가 별도로 필요하다.
 
 ## 개발 / 크레딧
 
