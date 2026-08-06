@@ -51,6 +51,8 @@ export interface Note {
   body: string
   /** true면 목록 미리보기에 본문 대신 자물쇠 표시(UI 상 가리기, 암호화 아님) */
   hide_preview: boolean
+  /** true면 목록 상단에 고정 */
+  pinned: boolean
   updated_at: string
 }
 

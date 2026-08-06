@@ -62,7 +62,7 @@ RLS(`owner_id = auth.uid()`)가 담당.
    무관하게 동작. **⚠️ `schema.sql` 재실행 필요** + 기존에 `alter database`로
    설정했다면 무의미하니 아래로 대체:
    `insert into app_settings (key, value) values ('admin_uid', '<내 UID>') on conflict (key) do update set value = excluded.value;`
-   (`backlog.md` 1.2)
+   (`backlog.md` 1.4)
 6. 낙서장 정비 (`backlog.md` 2.4)
    - ~~목록 미리보기 숨기기~~ — **완료(2026-07-27, 메모별 선택형)**: 전체
      제거가 아니라 `notes.hide_preview bool` 컬럼으로 메모별 토글, 숨기면
@@ -77,5 +77,9 @@ RLS(`owner_id = auth.uid()`)가 담당.
      네이티브 Ctrl+Z가 겹치는 영역을 이미 충분히 커버해 고칠 값어치가 낮다고
      판단. (2) 저장 버튼 제거 후 편집기 하단에 "삭제" 버튼만 남은 레이아웃은
      당장은 그대로 두기로 함.
+   - 검색·정렬·고정(1단계) — **완료(2026-08-06)**: 제목·본문 키워드 검색(클라
+     이언트 필터), 최근 수정순/제목순 정렬 토글, `notes.pinned bool` 컬럼으로
+     고정(항상 최상단). **⚠️ schema.sql 재실행 필요.** 브라우저 인증 흐름 때문에
+     실제 클릭 테스트는 못 함 — 화면에서 확인 필요.
    - 다음: 폴더(`note_folders`, `parent_id`는 미리 만들되 지금은 평평하게만
-     사용)
+     사용) — 보관(archive) 기능과 같이 설계할지 결정 필요(`backlog.md` 2.4)

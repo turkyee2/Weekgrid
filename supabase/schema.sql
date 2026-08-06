@@ -284,3 +284,11 @@ create trigger notes_set_updated_at
 -- 표시만 하고 본문은 노출하지 않는다. (참고: 지금은 UI 표시만 가리는 것이고
 -- 서버측 암호화는 아니다 — PIN 기반 암호화는 향후 후보, backlog 2.4 참고.)
 alter table notes add column if not exists hide_preview bool not null default false;
+
+
+-- ============================================================
+-- 낙서장 1단계: 검색·정렬·고정 (재실행 안전, backlog 2장)
+-- ============================================================
+
+-- 자주 보는 메모를 목록 상단에 고정. 검색/정렬은 클라이언트에서 처리한다.
+alter table notes add column if not exists pinned bool not null default false;

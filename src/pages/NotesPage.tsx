@@ -4,8 +4,56 @@ import { createNote, listNotes, removeNote, updateNote } from '../api/notes'
 import type { Note } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 
-// 낙서장 화면 (태스크 21: 목록 + 생성/편집/삭제)
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  )
+}
+
+function LockIcon({
+  locked,
+  className,
+}: {
+  locked: boolean
+  className?: string
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      {locked ? (
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      ) : (
+        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+      )}
+    </svg>
+  )
+}
+
+// 낙서장 화면 (태스크 21: 목록 + 생성/편집/삭제, backlog 2장 1단계: 검색/정렬/고정)
 // 좌측 목록에서 메모를 고르면 우측 편집기에서 제목/본문을 수정한다.
+// 검색·정렬은 클라이언트에서만 처리(서버 변경 없음), 고정은 notes.pinned
+// 컬럼 — 검색/정렬 결과와 무관하게 고정된 메모가 항상 목록 최상단.
+// 진입 시 첫 메모를 자동 선택하지 않는다(프라이버시) — 목록만 보이고
+// 클릭해야 내용이 열린다.
 // 자동저장: ItemNote.tsx 와 같은 debounce(600ms) 패턴(backlog 2.4).
 // 노트 전환 시 대기 중인 저장은 취소하지 않고 즉시 flush 한다(공유 타이머라
 // 그냥 취소하면 방금 떠난 메모의 마지막 입력이 유실된다). 되돌리기 버튼은
@@ -17,6 +65,8 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [sortMode, setSortMode] = useState<'recent' | 'title'>('recent')
 
   // 편집 중인 값 (선택된 메모의 사본)
   const [title, setTitle] = useState('')
@@ -35,13 +85,30 @@ export default function NotesPage() {
     [notes, selectedId],
   )
 
+  // 검색(제목·본문) → 고정 메모 우선 → 선택한 정렬 기준
+  const visibleNotes = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? notes.filter(
+          (n) =>
+            n.title.toLowerCase().includes(q) ||
+            n.body.toLowerCase().includes(q),
+        )
+      : notes
+    return [...filtered].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      return sortMode === 'title'
+        ? a.title.localeCompare(b.title)
+        : b.updated_at.localeCompare(a.updated_at)
+    })
+  }, [notes, search, sortMode])
+
   useEffect(() => {
     let alive = true
     listNotes()
       .then((data) => {
         if (!alive) return
         setNotes(data)
-        if (data.length > 0) setSelectedId(data[0].id)
       })
       .catch((e) =>
         alive && setError(e instanceof Error ? e.message : '불러오지 못했습니다.'),
@@ -143,6 +210,16 @@ export default function NotesPage() {
     }
   }
 
+  async function handleTogglePin(n: Note) {
+    setError('')
+    try {
+      const updated = await updateNote(n.id, { pinned: !n.pinned })
+      upsertLocal(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '변경에 실패했습니다.')
+    }
+  }
+
   async function handleDelete() {
     if (!selected) return
     const ok = window.confirm('이 메모를 삭제할까요?')
@@ -187,13 +264,49 @@ export default function NotesPage() {
             + 새 메모
           </button>
 
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="검색…"
+            className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          />
+          <div className="mb-2 flex items-center gap-1 text-xs text-slate-400">
+            <span>정렬</span>
+            <button
+              type="button"
+              onClick={() => setSortMode('recent')}
+              className={`rounded px-1.5 py-0.5 ${
+                sortMode === 'recent'
+                  ? 'bg-indigo-50 text-indigo-600'
+                  : 'hover:bg-slate-50'
+              }`}
+            >
+              최근 수정순
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode('title')}
+              className={`rounded px-1.5 py-0.5 ${
+                sortMode === 'title'
+                  ? 'bg-indigo-50 text-indigo-600'
+                  : 'hover:bg-slate-50'
+              }`}
+            >
+              제목순
+            </button>
+          </div>
+
           {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
           {!loading && notes.length === 0 && (
             <p className="text-sm text-slate-400">메모가 없습니다.</p>
           )}
+          {!loading && notes.length > 0 && visibleNotes.length === 0 && (
+            <p className="text-sm text-slate-400">검색 결과가 없습니다.</p>
+          )}
           <ul className="space-y-1">
-            {notes.map((n) => (
-              <li key={n.id} className="flex items-center gap-1">
+            {visibleNotes.map((n) => (
+              <li key={n.id} className="group flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setSelectedId(n.id)}
@@ -218,11 +331,15 @@ export default function NotesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleTogglePreview(n)}
-                  title={n.hide_preview ? '미리보기 다시 보이기' : '목록 미리보기 숨기기'}
-                  className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                  onClick={() => void handleTogglePin(n)}
+                  title={n.pinned ? '고정 해제' : '목록 상단 고정'}
+                  className={`shrink-0 rounded p-1 ${
+                    n.pinned
+                      ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      : 'text-slate-300 opacity-0 hover:bg-slate-100 hover:text-slate-500 group-hover:opacity-100'
+                  }`}
                 >
-                  {n.hide_preview ? '🔒' : '🔓'}
+                  <PinIcon className="size-3.5" />
                 </button>
               </li>
             ))}
@@ -241,7 +358,24 @@ export default function NotesPage() {
                 }
               }}
             >
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => void handleTogglePreview(selected)}
+                  title={
+                    selected.hide_preview
+                      ? '목록 미리보기 다시 보이기'
+                      : '목록 미리보기 숨기기'
+                  }
+                  className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+                    selected.hide_preview
+                      ? 'text-slate-600'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <LockIcon locked={selected.hide_preview} className="size-3.5" />
+                  비공개
+                </button>
                 <span className="text-xs text-slate-400">
                   {status === 'saving'
                     ? '저장 중…'

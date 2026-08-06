@@ -54,7 +54,7 @@ export async function createNote(input: {
 /** 제목/본문 수정. updated_at 은 DB 트리거가 갱신. */
 export async function updateNote(
   id: string,
-  patch: Partial<Pick<Note, 'title' | 'body' | 'hide_preview'>>,
+  patch: Partial<Pick<Note, 'title' | 'body' | 'hide_preview' | 'pinned'>>,
 ): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
