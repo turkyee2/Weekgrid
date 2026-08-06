@@ -345,3 +345,14 @@ alter table note_folders drop constraint if exists note_folders_id_owner_key;
 alter table note_folders add constraint note_folders_id_owner_key unique (id, owner_id);
 alter table notes add constraint notes_folder_id_owner_fkey
   foreign key (folder_id, owner_id) references note_folders(id, owner_id);
+
+
+-- ============================================================
+-- D-day 배너 고정 (재실행 안전, backlog 7-B)
+-- ============================================================
+
+-- show_dday(매트릭스 셀 배지 표시 여부)와 분리 — 이 값이 true인 항목만
+-- 헤더 아래 상단 배너에 상시 노출된다. 기본은 꺼짐: D-day로 표시한다고
+-- 자동으로 배너에 뜨지 않고, 사용자가 D-day 관리 화면에서 직접 골라야 뜬다.
+-- 언제든 관리 화면에서 다시 켜고 끌 수 있다(되돌리기 없이 즉시 토글).
+alter table items add column if not exists dday_pinned bool not null default false;

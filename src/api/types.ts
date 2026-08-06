@@ -25,8 +25,10 @@ export interface Item {
   participants: string[]
   /** 중요도 강조 색 key ('red'|'amber'|'blue') 또는 null=기본 (피드백 #3) */
   accent: string | null
-  /** D-day 표시 여부. true면 매트릭스에서 이 항목의 date를 기준일로 D-N 배지 표시 */
+  /** D-day 표시 여부. true면 매트릭스 셀에 이 항목의 date를 기준일로 D-N 배지 표시 */
   show_dday: boolean
+  /** true면 헤더 아래 D-day 배너에 상시 노출(show_dday와 별개, 사용자가 직접 선택) */
+  dday_pinned: boolean
   created_at: string
   updated_at: string
 }

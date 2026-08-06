@@ -15,6 +15,7 @@ function item(partial: Partial<Item>): Item {
     participants: [],
     accent: null,
     show_dday: false,
+    dday_pinned: false,
     created_at: '2026-07-20T00:00:00Z',
     updated_at: '2026-07-20T00:00:00Z',
     ...partial,

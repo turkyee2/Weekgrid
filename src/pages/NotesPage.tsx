@@ -104,10 +104,14 @@ export default function NotesPage() {
   )
 
   // 폴더 필터(전체=보관함 제외) → 검색(제목·본문) → 고정 메모 우선 → 선택한 정렬 기준
+  // archiveFolder가 아직 없으면(로딩 전 또는 schema.sql 미실행) 아무것도 보관함으로
+  // 취급하지 않는다 — null끼리 비교해 전체 메모가 걸러지는 사고를 방지.
   const visibleNotes = useMemo(() => {
     const byFolder =
       folderFilter === null
-        ? notes.filter((n) => n.folder_id !== archiveFolder?.id)
+        ? archiveFolder
+          ? notes.filter((n) => n.folder_id !== archiveFolder.id)
+          : notes
         : notes.filter((n) => n.folder_id === folderFilter)
     const q = search.trim().toLowerCase()
     const filtered = q
@@ -127,18 +131,26 @@ export default function NotesPage() {
 
   useEffect(() => {
     let alive = true
+    // 메모 목록은 폴더 기능과 별개로 로드한다 — 폴더 쪽이 실패해도
+    // (예: schema.sql 재실행 전이라 note_folders 테이블이 없는 경우)
+    // 메모 목록 자체는 항상 보여야 한다.
+    listNotes()
+      .then((data) => {
+        if (alive) setNotes(data)
+      })
+      .catch((e) => {
+        if (alive) setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
     ;(async () => {
       try {
-        const [notesData] = await Promise.all([listNotes(), ensureArchiveFolder()])
-        if (!alive) return
-        setNotes(notesData)
+        await ensureArchiveFolder()
         const foldersData = await listNoteFolders()
-        if (!alive) return
-        setFolders(foldersData)
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
-      } finally {
-        if (alive) setLoading(false)
+        if (alive) setFolders(foldersData)
+      } catch {
+        // 폴더 기능 준비 전(예: schema.sql 미실행)이어도 낙서장 자체는 계속 써야 하므로 무시
       }
     })()
     return () => {

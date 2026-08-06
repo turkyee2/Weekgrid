@@ -158,9 +158,14 @@ export default function MatrixPage() {
       upsertItemLocal({ ...prev, ...patch, updated_at: new Date().toISOString() })
       try {
         await updateItem(id, patch)
-        // done/date 변경은 지난 미완료 배지에, done/date/show_dday 변경은 D-day 배너에 영향을 줄 수 있음
+        // done/date 변경은 지난 미완료 배지에, done/date/show_dday/dday_pinned 변경은 D-day 배너에 영향을 줄 수 있음
         if (patch.done !== undefined || patch.date !== undefined) overdue.reload()
-        if (patch.done !== undefined || patch.date !== undefined || patch.show_dday !== undefined)
+        if (
+          patch.done !== undefined ||
+          patch.date !== undefined ||
+          patch.show_dday !== undefined ||
+          patch.dday_pinned !== undefined
+        )
           dday.reload()
       } catch {
         upsertItemLocal(prev)
@@ -219,7 +224,7 @@ export default function MatrixPage() {
 
       <main className="px-6 py-6">
         <DdayBanner
-          items={dday.items}
+          items={dday.items.filter((it) => it.dday_pinned)}
           categories={categories}
           today={today}
           onJump={handleJumpToItem}

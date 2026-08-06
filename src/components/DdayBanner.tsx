@@ -2,8 +2,10 @@ import type { Category, Item } from '../api/types'
 import { dDayLabel } from '../lib/date'
 
 // D-day 배너 (backlog 7-B) — 헤더 바로 아래 상시 표시.
-// D-day로 지정되고 아직 완료되지 않은 항목을 날짜순 카드로 나열한다.
-// 매트릭스 셀 안의 기존 작은 배지는 그대로 유지하고, 이 배너는 요약용이다.
+// items 는 배너에 고정(dday_pinned)된 항목만 — 고정은 항목 상세 패널에서
+// "D-day로 표시" 토글 바로 아래의 별도 스위치로 켜고 끈다(완료 여부와
+// 무관하게 항상 토글 가능). 매트릭스 셀 안의 기존 작은 배지는 그대로
+// 유지하고, 이 배너는 그중 사용자가 고른 것만 모아 보여주는 요약이다.
 
 interface Props {
   items: Item[]

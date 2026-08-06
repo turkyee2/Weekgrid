@@ -90,6 +90,7 @@ export async function updateItem(
       | 'participants'
       | 'accent'
       | 'show_dday'
+      | 'dday_pinned'
     >
   >,
 ): Promise<void> {

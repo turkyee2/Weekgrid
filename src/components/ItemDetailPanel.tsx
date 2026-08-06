@@ -248,23 +248,47 @@ export default function ItemDetailPanel({
           </div>
 
           {/* D-day 표시 */}
-          <div className="flex items-center justify-between text-sm font-medium text-slate-700">
-            <span>D-day로 표시</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={item.show_dday}
-              onClick={() => void onPatch(item.id, { show_dday: !item.show_dday })}
-              className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                item.show_dday ? 'bg-indigo-600' : 'bg-slate-300'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 size-4 rounded-full bg-white transition-transform ${
-                  item.show_dday ? 'translate-x-[18px]' : 'translate-x-0.5'
+          <div>
+            <div className="flex items-center justify-between text-sm font-medium text-slate-700">
+              <span>D-day로 표시</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={item.show_dday}
+                onClick={() => void onPatch(item.id, { show_dday: !item.show_dday })}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                  item.show_dday ? 'bg-indigo-600' : 'bg-slate-300'
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`absolute top-0.5 size-4 rounded-full bg-white transition-transform ${
+                    item.show_dday ? 'translate-x-[18px]' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+            {item.show_dday && (
+              <div className="mt-2 flex items-center justify-between pl-3 text-xs text-slate-500">
+                <span>상단 배너에 고정</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={item.dday_pinned}
+                  onClick={() =>
+                    void onPatch(item.id, { dday_pinned: !item.dday_pinned })
+                  }
+                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+                    item.dday_pinned ? 'bg-rose-500' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 size-3 rounded-full bg-white transition-transform ${
+                      item.dday_pinned ? 'translate-x-[14px]' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 서브태스크·메모 등 확장 슬롯 */}
