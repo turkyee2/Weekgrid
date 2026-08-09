@@ -9,6 +9,7 @@ import {
 } from '../api/noteFolders'
 import type { Note, NoteFolder } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
+import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
 
 function PinIcon({ className }: { className?: string }) {
   return (
@@ -76,6 +77,10 @@ export default function NotesPage() {
   const [folders, setFolders] = useState<NoteFolder[]>([])
   // null = 전체(보관함 제외). 그 외엔 폴더 id(보관함 포함)로 필터
   const [folderFilter, setFolderFilter] = useState<string | null>(null)
+  // 좁은 화면에선 목록과 편집기를 나란히 두지 않고 한 번에 하나만 보여준다
+  // (예전엔 세로로 쌓여서, 메모를 고른 뒤 목록 전체를 지나 스크롤해야 편집기가
+  //  나왔다 — backlog 8.1)
+  const isWide = useMediaQuery(MD_UP)
 
   // 편집 중인 값 (선택된 메모의 사본)
   const [title, setTitle] = useState('')
@@ -334,8 +339,10 @@ export default function NotesPage() {
 
   return (
     <div className="min-h-full bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <h1 className="text-lg font-semibold text-slate-800">낙서장</h1>
+      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 md:px-6 md:py-4">
+        <h1 className="text-base font-semibold text-slate-800 md:text-lg">
+          낙서장
+        </h1>
         <nav className="flex items-center gap-4 text-sm text-slate-500">
           <Link className="hover:text-slate-800" to="/">
             매트릭스
@@ -344,9 +351,9 @@ export default function NotesPage() {
         </nav>
       </header>
 
-      <main className="grid grid-cols-1 gap-6 px-6 py-6 md:grid-cols-[16rem_1fr]">
-        {/* 목록 */}
-        <aside>
+      <main className="grid grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[16rem_1fr] md:px-6 md:py-6">
+        {/* 목록 — 좁은 화면에서 메모를 열면 편집기에 자리를 내준다 */}
+        <aside className={!isWide && selected ? 'hidden' : undefined}>
           <button
             type="button"
             onClick={handleNew}
@@ -413,36 +420,30 @@ export default function NotesPage() {
             </button>
           </div>
 
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="검색…"
-            className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-          />
-          <div className="mb-2 flex items-center gap-1 text-xs text-slate-400">
-            <span>정렬</span>
+          {/* 검색 + 정렬 한 줄. 정렬은 두 값뿐이라 라디오 두 개를 따로 두는 대신
+              누를 때마다 바뀌는 버튼 하나로 합쳤다 — 목록 위 조작 줄이 4줄에서
+              3줄로 줄어든다 (backlog 8.1 화면 밀도) */}
+          <div className="mb-2 flex items-center gap-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="검색…"
+              className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
             <button
               type="button"
-              onClick={() => setSortMode('recent')}
-              className={`rounded px-1.5 py-0.5 ${
+              onClick={() =>
+                setSortMode((m) => (m === 'recent' ? 'title' : 'recent'))
+              }
+              title={
                 sortMode === 'recent'
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'hover:bg-slate-50'
-              }`}
+                  ? '최근 수정순 — 눌러서 제목순으로'
+                  : '제목순 — 눌러서 최근 수정순으로'
+              }
+              className="shrink-0 rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             >
-              최근 수정순
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode('title')}
-              className={`rounded px-1.5 py-0.5 ${
-                sortMode === 'title'
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'hover:bg-slate-50'
-              }`}
-            >
-              제목순
+              {sortMode === 'recent' ? '최근순' : '제목순'}
             </button>
           </div>
 
@@ -510,6 +511,16 @@ export default function NotesPage() {
                 }
               }}
             >
+              {/* 좁은 화면에선 목록이 가려져 있으므로 돌아갈 길을 만들어준다 */}
+              {!isWide && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="-ml-1 flex items-center gap-1 rounded px-1 py-0.5 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                >
+                  ‹ 목록
+                </button>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <button
@@ -584,7 +595,9 @@ export default function NotesPage() {
               </div>
             </div>
           ) : (
-            !loading && (
+            // 좁은 화면에선 목록이 바로 위에 그대로 떠 있으므로 안내가 군더더기다
+            !loading &&
+            isWide && (
               <p className="text-sm text-slate-400">
                 왼쪽에서 메모를 고르거나 새로 만들어 보세요.
               </p>
