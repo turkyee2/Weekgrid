@@ -158,12 +158,21 @@ export default function NotesPage() {
     }
   }, [])
 
-  // 선택이 바뀌면 편집 필드를 해당 메모 값으로 리셋
+  // 선택이 바뀌면 편집 필드를 해당 메모 값으로 리셋.
+  // 의존성이 `selected`(notes에서 파생) 하나뿐이면 자동저장이 끝날 때마다
+  // upsertLocal → notes 새 배열 → selected 새 참조가 되어 effect가 다시 돌고,
+  // 저장 중에 이어서 친 입력이 서버 응답값으로 되감기며 캐럿이 맨 끝으로 튄다.
+  // 그래서 "실제로 selectedId가 바뀐 경우"에만 리셋한다.
+  const loadedIdRef = useRef<string | null>(null)
   useEffect(() => {
+    // 선택은 됐는데 목록에 아직 없으면(로딩 중) 다음 렌더를 기다린다
+    if (selectedId !== null && !selected) return
+    if (loadedIdRef.current === selectedId) return
+    loadedIdRef.current = selectedId
     setTitle(selected?.title ?? '')
     setBody(selected?.body ?? '')
     setStatus('idle')
-  }, [selected])
+  }, [selected, selectedId])
 
   // 선택(selectedId)이 바뀌기 직전, 대기 중인 자동저장이 있으면 즉시 flush.
   // 타이머가 하나뿐이라 취소만 하면 방금 떠난 메모의 마지막 입력이 사라진다.
@@ -554,12 +563,14 @@ export default function NotesPage() {
                 placeholder="제목"
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
+              {/* 화면 높이에 맞춰 아래로 넓게(헤더·툴바·제목·삭제줄 약 18rem 제외).
+                  rows 는 calc 가 안 먹는 환경용 최소 보장값. */}
               <textarea
                 value={body}
                 onChange={(e) => handleBodyChange(e.target.value)}
                 placeholder="자유롭게 적어두세요…"
                 rows={16}
-                className="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="min-h-[calc(100vh-18rem)] w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <div className="flex items-center gap-2">
                 <button
