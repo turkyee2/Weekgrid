@@ -71,7 +71,7 @@ export default function MonthCalendar({
                 key={key}
                 type="button"
                 onClick={() => onSelectDate(d)}
-                className={`flex h-24 flex-col border-b border-l border-slate-200 p-1 text-left align-top first:border-l-0 hover:bg-slate-50 ${
+                className={`flex h-20 flex-col border-b border-l border-slate-200 p-1 text-left align-top first:border-l-0 hover:bg-slate-50 md:h-24 ${
                   inMonth ? 'bg-white' : 'bg-slate-50/50'
                 }`}
               >

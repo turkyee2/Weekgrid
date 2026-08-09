@@ -21,6 +21,7 @@ import { useMatrixData } from '../hooks/useMatrixData'
 import { useOverdueItems } from '../hooks/useOverdueItems'
 import { useDdayItems } from '../hooks/useDdayItems'
 import { cellItems } from '../lib/cellMap'
+import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
 import {
   addDays,
   addMonths,
@@ -44,6 +45,8 @@ export default function MatrixPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   // 열려 있는 항목의 연결 메모에 내용이 있는지 (삭제 확인 문구용, backlog 8.1)
   const [openItemHasNote, setOpenItemHasNote] = useState(false)
+  // 좁은 화면에선 매트릭스 축을 뒤집는다 (가로=카테고리, 세로=날짜) — backlog 8.1
+  const isWide = useMediaQuery(MD_UP)
 
   const {
     loading,
@@ -229,16 +232,18 @@ export default function MatrixPage() {
 
   return (
     <div className="min-h-full bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-slate-800">주간 플래너</h1>
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 px-4 py-3 md:px-6 md:py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="truncate text-base font-semibold text-slate-800 md:text-lg">
+            주간 플래너
+          </h1>
           <OverdueBadge
             items={overdue.items}
             categories={categories}
             onJump={handleJumpToItem}
           />
         </div>
-        <nav className="flex items-center gap-4 text-sm text-slate-500">
+        <nav className="flex shrink-0 items-center gap-4 text-sm text-slate-500">
           <button
             type="button"
             onClick={() => setShowSettings(true)}
@@ -253,13 +258,7 @@ export default function MatrixPage() {
         </nav>
       </header>
 
-      <main className="px-6 py-6">
-        <DdayBanner
-          items={dday.items.filter((it) => it.dday_pinned)}
-          categories={categories}
-          today={today}
-          onJump={handleJumpToItem}
-        />
+      <main className="px-4 py-4 md:px-6 md:py-6">
         <div className="mb-4">
           <ViewHeader
             label={viewLabel(viewMode, anchor)}
@@ -268,7 +267,14 @@ export default function MatrixPage() {
             onNext={goNext}
             onToday={goToday}
             onSetView={setView}
-          />
+          >
+            <DdayBanner
+              items={dday.items.filter((it) => it.dday_pinned)}
+              categories={categories}
+              today={today}
+              onJump={handleJumpToItem}
+            />
+          </ViewHeader>
         </div>
 
         {loading && <GridSkeleton rows={viewMode === 'week' ? 4 : 6} cols={7} />}
@@ -303,6 +309,7 @@ export default function MatrixPage() {
             onOpenItem={(it) => setSelectedItemId(it.id)}
             onToggleDone={handleToggleDone}
             subtaskProgress={subtaskProgress}
+            transposed={!isWide}
           />
         )}
         {!loading && !error && categories.length > 0 && viewMode === 'month' && (

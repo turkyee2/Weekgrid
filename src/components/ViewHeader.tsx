@@ -1,6 +1,11 @@
 import type { ViewMode } from '../lib/date'
 
 // 주/월 이동 + 뷰 토글 헤더 (태스크 12 + 태스크 19)
+//
+// D-day 배너는 원래 이 줄 위에 가로 한 줄을 통째로 차지하고 있었는데,
+// 화면을 너무 먹는다는 피드백으로 이 줄의 남는 공간에 인라인으로 넣었다
+// (backlog 8.1). "상시 보인다"는 원래 의도는 그대로 지키면서 줄 하나를 아낀다.
+// 좁아지면 flex-wrap 으로 자기 줄에 내려가고, 그 안에서 가로 스크롤된다.
 
 interface Props {
   label: string
@@ -9,6 +14,8 @@ interface Props {
   onNext: () => void
   onToday: () => void
   onSetView: (mode: ViewMode) => void
+  /** 날짜 라벨과 뷰 토글 사이에 들어가는 슬롯 (D-day 배너) */
+  children?: React.ReactNode
 }
 
 export default function ViewHeader({
@@ -18,9 +25,10 @@ export default function ViewHeader({
   onNext,
   onToday,
   onSetView,
+  children,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <div className="flex items-center rounded-md border border-slate-200">
         <button
           type="button"
@@ -47,10 +55,15 @@ export default function ViewHeader({
         </button>
       </div>
 
-      <span className="text-base font-medium text-slate-800">{label}</span>
+      <span className="shrink-0 text-base font-medium text-slate-800">
+        {label}
+      </span>
+
+      {/* D-day 배너 슬롯 — 남는 공간을 차지하고, 넘치면 그 안에서만 가로 스크롤 */}
+      {children && <div className="min-w-0 flex-1">{children}</div>}
 
       {/* 주간/월간 토글 */}
-      <div className="ml-auto flex items-center rounded-md border border-slate-200 p-0.5 text-sm">
+      <div className="ml-auto flex shrink-0 items-center rounded-md border border-slate-200 p-0.5 text-sm">
         {(['week', 'month'] as const).map((m) => (
           <button
             key={m}

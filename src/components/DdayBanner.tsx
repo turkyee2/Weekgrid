@@ -18,7 +18,7 @@ export default function DdayBanner({ items, categories, today, onJump }: Props) 
   if (items.length === 0) return null
 
   return (
-    <div className="mb-4 flex items-center gap-2 overflow-x-auto rounded-md border border-rose-100 bg-rose-50/50 px-3 py-2">
+    <div className="flex items-center gap-2 overflow-x-auto rounded-md border border-rose-100 bg-rose-50/50 px-2 py-1">
       <span className="shrink-0 text-xs font-medium text-rose-500">D-day</span>
       <ul className="flex items-center gap-2">
         {items.map((it) => {
