@@ -59,8 +59,17 @@ export default function ViewHeader({
         {label}
       </span>
 
-      {/* D-day 배너 슬롯 — 남는 공간을 차지하고, 넘치면 그 안에서만 가로 스크롤 */}
-      {children && <div className="min-w-0 flex-1">{children}</div>}
+      {/* D-day 배너 슬롯.
+          넓은 화면: 이 줄의 남는 공간에 인라인(줄 하나를 아낀다).
+          좁은 화면: basis-full 로 자기 줄을 통째로 쓴다. 인라인으로 두면 날짜
+          라벨·뷰 토글과 남는 폭을 나눠 가져 글자를 읽을 수 없다(실기기 확인).
+          order-last 를 같이 주는 이유 — 이게 없으면 배너가 먼저 줄을 차지해
+          뷰 토글이 세 번째 줄로 밀려난다. */}
+      {children && (
+        <div className="order-last min-w-0 basis-full md:order-none md:flex-1 md:basis-auto">
+          {children}
+        </div>
+      )}
 
       {/* 주간/월간 토글 */}
       <div className="ml-auto flex shrink-0 items-center rounded-md border border-slate-200 p-0.5 text-sm">

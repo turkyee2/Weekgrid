@@ -6,6 +6,7 @@ import { upsertSettings } from '../api/settings'
 import type { Item } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
+import WeekAgenda from '../components/WeekAgenda'
 import ItemDetailPanel from '../components/ItemDetailPanel'
 import SubtaskList from '../components/SubtaskList'
 import ItemNote from '../components/ItemNote'
@@ -299,19 +300,36 @@ export default function MatrixPage() {
             + 설정에서 카테고리를 추가해 시작하세요
           </button>
         )}
-        {!loading && !error && categories.length > 0 && viewMode === 'week' && (
-          <MatrixGrid
-            categories={categories}
-            dates={dateRange.dates}
-            cellMap={cellMap}
-            today={today}
-            onAddItem={handleAddItem}
-            onOpenItem={(it) => setSelectedItemId(it.id)}
-            onToggleDone={handleToggleDone}
-            subtaskProgress={subtaskProgress}
-            transposed={!isWide}
-          />
-        )}
+        {!loading &&
+          !error &&
+          categories.length > 0 &&
+          viewMode === 'week' &&
+          // 좁은 화면에선 격자 대신 날짜별 세로 목록 (backlog 8.1).
+          // 390px 에서는 열이 몇 개든 칸 폭이 65~90px 이라 항목 텍스트가
+          // 읽히지 않는다 — 축을 뒤집어도 마찬가지여서 목록으로 교체했다.
+          (isWide ? (
+            <MatrixGrid
+              categories={categories}
+              dates={dateRange.dates}
+              cellMap={cellMap}
+              today={today}
+              onAddItem={handleAddItem}
+              onOpenItem={(it) => setSelectedItemId(it.id)}
+              onToggleDone={handleToggleDone}
+              subtaskProgress={subtaskProgress}
+            />
+          ) : (
+            <WeekAgenda
+              categories={categories}
+              dates={dateRange.dates}
+              cellMap={cellMap}
+              today={today}
+              onAddItem={handleAddItem}
+              onOpenItem={(it) => setSelectedItemId(it.id)}
+              onToggleDone={handleToggleDone}
+              subtaskProgress={subtaskProgress}
+            />
+          ))}
         {!loading && !error && categories.length > 0 && viewMode === 'month' && (
           <>
             <div className="mb-3 flex justify-end">
