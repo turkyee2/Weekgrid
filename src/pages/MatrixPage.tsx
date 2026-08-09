@@ -23,6 +23,7 @@ import { useOverdueItems } from '../hooks/useOverdueItems'
 import { useDdayItems } from '../hooks/useDdayItems'
 import { cellItems } from '../lib/cellMap'
 import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
+import { useOnline } from '../lib/useOnline'
 import {
   addDays,
   addMonths,
@@ -48,6 +49,7 @@ export default function MatrixPage() {
   const [openItemHasNote, setOpenItemHasNote] = useState(false)
   // 좁은 화면에선 매트릭스 축을 뒤집는다 (가로=카테고리, 세로=날짜) — backlog 8.1
   const isWide = useMediaQuery(MD_UP)
+  const online = useOnline()
 
   const {
     loading,
@@ -279,18 +281,34 @@ export default function MatrixPage() {
         </div>
 
         {loading && <GridSkeleton rows={viewMode === 'week' ? 4 : 6} cols={7} />}
-        {error && (
-          <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            <span>{error}</span>
-            <button
-              type="button"
-              onClick={reload}
-              className="rounded border border-red-300 px-2 py-1 text-xs font-medium hover:bg-red-100"
-            >
-              다시 시도
-            </button>
-          </div>
-        )}
+        {/* 오프라인이면 원인을 구분해 안내한다. 앱 셸이 캐시돼 화면 자체는
+            뜨는데 평소 에러 문구를 그대로 쓰면 앱이 고장난 것처럼 읽힌다. */}
+        {error &&
+          (online ? (
+            <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={reload}
+                className="rounded border border-red-300 px-2 py-1 text-xs font-medium hover:bg-red-100"
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <span>
+                오프라인입니다. 저장된 항목은 연결되면 다시 불러옵니다.
+              </span>
+              <button
+                type="button"
+                onClick={reload}
+                className="rounded border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-100"
+              >
+                다시 시도
+              </button>
+            </div>
+          ))}
         {!loading && !error && categories.length === 0 && (
           <button
             type="button"

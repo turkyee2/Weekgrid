@@ -10,6 +10,7 @@ import {
 import type { Note, NoteFolder } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
+import { useOnline } from '../lib/useOnline'
 
 function PinIcon({ className }: { className?: string }) {
   return (
@@ -81,6 +82,7 @@ export default function NotesPage() {
   // (예전엔 세로로 쌓여서, 메모를 고른 뒤 목록 전체를 지나 스크롤해야 편집기가
   //  나왔다 — backlog 8.1)
   const isWide = useMediaQuery(MD_UP)
+  const online = useOnline()
 
   // 편집 중인 값 (선택된 메모의 사본)
   const [title, setTitle] = useState('')
@@ -603,7 +605,15 @@ export default function NotesPage() {
               </p>
             )
           )}
-          {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+          {error && (
+            <p
+              className={`mt-3 text-sm ${online ? 'text-red-500' : 'text-slate-500'}`}
+            >
+              {online
+                ? error
+                : '오프라인입니다. 연결되면 메모를 다시 불러옵니다.'}
+            </p>
+          )}
         </section>
       </main>
     </div>

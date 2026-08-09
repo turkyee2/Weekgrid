@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# vite-plugin-pwa 가 개발 모드에서 만드는 서비스 워커 산출물
+dev-dist
+
 # Env (비밀값 — 절대 커밋 금지. 예시는 .env.example만 커밋)
 .env
 .env.*
