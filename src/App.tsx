@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './lib/useAuth'
+import InstallPrompt from './components/InstallPrompt'
 import LoginPage from './pages/LoginPage'
 import MatrixPage from './pages/MatrixPage'
 import NotesPage from './pages/NotesPage'
@@ -27,12 +28,17 @@ function App() {
   }
 
   // 인증됨: 앱 화면. /login 으로 오면 매트릭스로 되돌림
+  // 설치 배너는 로그인 후에만 — 처음 들어와 로그인도 안 한 사람에게 설치부터
+  // 권하는 건 이르다.
   return (
-    <Routes>
-      <Route path="/" element={<MatrixPage />} />
-      <Route path="/notes" element={<NotesPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<MatrixPage />} />
+        <Route path="/notes" element={<NotesPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <InstallPrompt />
+    </>
   )
 }
 
