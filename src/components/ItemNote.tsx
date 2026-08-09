@@ -12,9 +12,14 @@ import type { Note } from '../api/types'
 
 interface Props {
   itemId: string
+  /**
+   * 메모에 내용이 있는지 부모에 통지 (선택).
+   * 항목 삭제 확인창이 "함께 사라지는 것"을 정확히 안내하는 데 쓴다 (backlog 8.1).
+   */
+  onHasBodyChange?: (hasBody: boolean) => void
 }
 
-export default function ItemNote({ itemId }: Props) {
+export default function ItemNote({ itemId, onHasBodyChange }: Props) {
   const [note, setNote] = useState<Note | null>(null)
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(true)
@@ -45,6 +50,11 @@ export default function ItemNote({ itemId }: Props) {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [itemId])
+
+  // 본문 유무를 부모에 통지 (삭제 확인 문구용)
+  useEffect(() => {
+    onHasBodyChange?.(body.trim().length > 0)
+  }, [body, onHasBodyChange])
 
   async function handleCreate() {
     setCreating(true)

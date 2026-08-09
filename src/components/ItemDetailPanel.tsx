@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Item } from '../api/types'
 import { ACCENT_COLORS } from '../lib/colors'
 import { useEscapeKey } from '../lib/useEscapeKey'
+import Toggle from './Toggle'
 
 // 항목 상세 패널 (태스크 30, 요구사항 10·12·13)
 // 우측 드로어. 내용·완료·시작 시각·참가자 태그를 편집한다(낙관적 반영은 부모가 담당).
@@ -14,6 +15,10 @@ interface Props {
   /** 낙관적 부분 수정 (부모에서 롤백/토스트 처리) */
   onPatch: (id: string, patch: Partial<Item>) => Promise<void>
   onRemove: (id: string) => Promise<void>
+  /** 이 항목에 딸린 서브태스크 개수 (삭제 확인 문구·조건에 사용, backlog 8.1) */
+  subtaskCount?: number
+  /** 이 항목의 연결 메모에 내용이 있는지 (삭제 확인 문구·조건에 사용) */
+  hasNote?: boolean
   /** 서브태스크 영역 등 추가 컨텐츠 슬롯 (태스크 31에서 사용) */
   children?: React.ReactNode
 }
@@ -24,6 +29,8 @@ export default function ItemDetailPanel({
   onClose,
   onPatch,
   onRemove,
+  subtaskCount = 0,
+  hasNote = false,
   children,
 }: Props) {
   const [content, setContent] = useState(item.content)
@@ -59,9 +66,23 @@ export default function ItemDetailPanel({
     })
   }
 
+  // 삭제 확인은 "딸린 내용이 실제로 있을 때만" 뜬다 (backlog 8.1).
+  // 한 줄만 적어둔 빈 항목을 지우는 데까지 확인창을 띄우면 방해만 되고,
+  // 정작 매번 뜨는 확인창은 습관적으로 넘기게 되어 경고 효과가 사라진다.
+  // 반대로 서브태스크·메모가 딸린 항목은 함께 사라지는 게 무엇인지 명시한다.
   async function handleDelete() {
-    if (!window.confirm('이 항목을 삭제할까요? 하위 체크리스트·메모도 함께 삭제됩니다.'))
-      return
+    const attached: string[] = []
+    if (subtaskCount > 0) attached.push(`세부 체크리스트 ${subtaskCount}개`)
+    if (hasNote) attached.push('메모')
+    if (item.participants?.length) attached.push('참가자')
+    if (item.start_time) attached.push('시작 시각')
+
+    if (attached.length > 0) {
+      const ok = window.confirm(
+        `"${item.content}" 을(를) 삭제할까요?\n${attached.join(' · ')}도 함께 삭제됩니다.`,
+      )
+      if (!ok) return
+    }
     await onRemove(item.id)
     onClose()
   }
@@ -251,42 +272,24 @@ export default function ItemDetailPanel({
           <div>
             <div className="flex items-center justify-between text-sm font-medium text-slate-700">
               <span>D-day로 표시</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={item.show_dday}
-                onClick={() => void onPatch(item.id, { show_dday: !item.show_dday })}
-                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                  item.show_dday ? 'bg-indigo-600' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 size-4 rounded-full bg-white transition-transform ${
-                    item.show_dday ? 'translate-x-[18px]' : 'translate-x-0.5'
-                  }`}
-                />
-              </button>
+              <Toggle
+                checked={item.show_dday}
+                onChange={(next) => void onPatch(item.id, { show_dday: next })}
+                label="D-day로 표시"
+              />
             </div>
             {item.show_dday && (
               <div className="mt-2 flex items-center justify-between pl-3 text-xs text-slate-500">
                 <span>상단 배너에 고정</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={item.dday_pinned}
-                  onClick={() =>
-                    void onPatch(item.id, { dday_pinned: !item.dday_pinned })
+                <Toggle
+                  checked={item.dday_pinned}
+                  onChange={(next) =>
+                    void onPatch(item.id, { dday_pinned: next })
                   }
-                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-                    item.dday_pinned ? 'bg-rose-500' : 'bg-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 size-3 rounded-full bg-white transition-transform ${
-                      item.dday_pinned ? 'translate-x-[14px]' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
+                  label="상단 배너에 고정"
+                  size="sm"
+                  onColor="bg-rose-500"
+                />
               </div>
             )}
           </div>

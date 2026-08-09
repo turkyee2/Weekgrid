@@ -74,7 +74,11 @@ export default function SubtaskList({ itemId, onProgressChange }: Props) {
     }
   }
 
+  // 앱에서 유일하게 확인 없이 즉시 지워지던 곳이라 한 단계를 넣는다 (backlog 8.1).
+  // 다만 "일부만" 원칙에 따라 아직 진행 중인(미완료) 줄에서만 묻는다 — 완료 표시한
+  // 줄을 정리하는 건 되돌릴 내용이 사실상 없는 청소 동작이라 그대로 지운다.
   async function handleRemove(st: Subtask) {
+    if (!st.done && !window.confirm(`"${st.content}" 을(를) 삭제할까요?`)) return
     setSubtasks((prev) => prev.filter((s) => s.id !== st.id))
     try {
       await removeSubtask(st.id)
