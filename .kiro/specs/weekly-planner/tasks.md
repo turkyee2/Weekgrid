@@ -167,7 +167,7 @@
 >   `apple-touch-icon`을 직접 넣었다. `lib/useOnline.ts`로 오프라인 문구 분기.
 >   생성기가 끌고 오는 sharp 구버전 CVE는 `overrides`로 `^0.35.3` 강제.
 >   스키마 변경 없음. (`backlog.md` 8.6)
-> - **설치 권장 배너 (2026-08-10, v4.1.0)**: `components/InstallPrompt.tsx` —
+> - **설치 권장 배너 (2026-08-10, v4.0.1)**: `components/InstallPrompt.tsx` —
 >   `beforeinstallprompt`를 가로채 보관했다가 자체 배너의 "설치" 버튼에서
 >   `prompt()` 호출(사용자 제스처 안에서만 가능하므로 보관이 필요).
 >   이미 설치됨(standalone)이면 미노출, "나중에"/거절 시 14일 스누즈,
