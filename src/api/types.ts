@@ -83,14 +83,20 @@ export interface UserSettings {
   owner_id: string
   day_rollover_hour: number // 0~23
   default_view: 'week' | 'month'
+  /** 월간 뷰 카테고리 필터로 고른 category id 목록. 빈 배열 = 전체 표시 (backlog 8.2) */
+  month_category_filter: string[]
   updated_at: string
 }
 
-/** user_settings 행이 아직 없을 때 사용할 기본값 */
-export const DEFAULT_SETTINGS: Pick<
+/** 앱이 읽고 쓰는 설정 필드(행 메타데이터 제외) */
+export type EditableSettings = Pick<
   UserSettings,
-  'day_rollover_hour' | 'default_view'
-> = {
+  'day_rollover_hour' | 'default_view' | 'month_category_filter'
+>
+
+/** user_settings 행이 아직 없을 때 사용할 기본값 */
+export const DEFAULT_SETTINGS: EditableSettings = {
   day_rollover_hour: 0,
   default_view: 'week',
+  month_category_filter: [],
 }

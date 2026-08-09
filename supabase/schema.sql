@@ -356,3 +356,15 @@ alter table notes add constraint notes_folder_id_owner_fkey
 -- 자동으로 배너에 뜨지 않고, 사용자가 D-day 관리 화면에서 직접 골라야 뜬다.
 -- 언제든 관리 화면에서 다시 켜고 끌 수 있다(되돌리기 없이 즉시 토글).
 alter table items add column if not exists dday_pinned bool not null default false;
+
+
+-- ============================================================
+-- 월간 뷰 카테고리 필터 기억 (재실행 안전, backlog 8.2)
+-- ============================================================
+
+-- 월간 뷰에서 고른 카테고리 필터를 사용자별로 저장한다. 빈 배열 = 전체 표시
+-- (CategoryFilter 의 "빈 배열 = 전체" 규약을 그대로 옮겨온 것).
+-- localStorage 가 아니라 여기에 두는 이유: 기기(폰/PC)를 옮겨도 같은 필터가
+-- 유지되게 하기 위함.
+alter table user_settings
+  add column if not exists month_category_filter text[] not null default '{}';

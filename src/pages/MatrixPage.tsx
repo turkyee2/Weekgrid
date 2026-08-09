@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
 import { ensureDefaultCategory } from '../api/categories'
+import { upsertSettings } from '../api/settings'
 import type { Item } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import MatrixGrid from '../components/MatrixGrid'
@@ -37,14 +38,18 @@ export default function MatrixPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   // 월간 뷰 카테고리 필터 (빈 배열 = 전체). 표시 전용, 데이터 변경 없음.
+  // 선택은 user_settings.month_category_filter 에 저장해 기기를 옮겨도 유지된다(backlog 8.2).
   const [monthCatFilter, setMonthCatFilter] = useState<string[]>([])
   // 상세 패널에 열려 있는 항목 id (태스크 30)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  // 열려 있는 항목의 연결 메모에 내용이 있는지 (삭제 확인 문구용, backlog 8.1)
+  const [openItemHasNote, setOpenItemHasNote] = useState(false)
 
   const {
     loading,
     error,
     settings,
+    settingsLoaded,
     categories,
     items,
     cellMap,
@@ -75,6 +80,32 @@ export default function MatrixPage() {
         /* 시드 실패는 치명적이지 않음 — 빈 상태 안내로 대체 */
       })
   }, [reload])
+
+  // 저장된 월간 카테고리 필터를 화면 상태로 1회만 반영 (backlog 8.2).
+  // settings 조회와 카테고리 조회가 모두 끝난 뒤에 하는 이유:
+  //  - settings 가 아직 기본값(빈 배열)인 상태에서 반영하면 저장값을 못 읽는다.
+  //  - 그 사이 삭제된 카테고리 id 가 남아 있으면 "0개짜리 필터"가 되어 달력이
+  //    통째로 비어 보이므로, 현재 카테고리에 있는 id 만 남기고 걸러낸다.
+  const catFilterHydrated = useRef(false)
+  useEffect(() => {
+    if (catFilterHydrated.current || !settingsLoaded || loading) return
+    catFilterHydrated.current = true
+    const valid = settings.month_category_filter.filter((id) =>
+      categories.some((c) => c.id === id),
+    )
+    if (valid.length > 0) setMonthCatFilter(valid)
+  }, [settingsLoaded, loading, settings.month_category_filter, categories])
+
+  const handleMonthCatFilterChange = useCallback(
+    (next: string[]) => {
+      setMonthCatFilter(next)
+      setSettingsLocal({ month_category_filter: next })
+      upsertSettings({ month_category_filter: next }).catch(() =>
+        setToast('필터 저장에 실패했습니다.'),
+      )
+    },
+    [setSettingsLocal],
+  )
 
   const today = useMemo(
     () => logicalToday(new Date(), settings.day_rollover_hour),
@@ -280,7 +311,7 @@ export default function MatrixPage() {
               <CategoryFilter
                 categories={categories}
                 selected={monthCatFilter}
-                onChange={setMonthCatFilter}
+                onChange={handleMonthCatFilterChange}
               />
             </div>
             <MonthCalendar
@@ -329,12 +360,17 @@ export default function MatrixPage() {
             onClose={() => setSelectedItemId(null)}
             onPatch={patchItem}
             onRemove={handleRemoveItem}
+            subtaskCount={subtaskProgress.get(selected.id)?.total ?? 0}
+            hasNote={openItemHasNote}
           >
             <SubtaskList
               itemId={selected.id}
               onProgressChange={setItemProgressLocal}
             />
-            <ItemNote itemId={selected.id} />
+            <ItemNote
+              itemId={selected.id}
+              onHasBodyChange={setOpenItemHasNote}
+            />
           </ItemDetailPanel>
         )
       })()}

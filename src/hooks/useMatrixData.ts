@@ -3,12 +3,12 @@ import { listCategories } from '../api/categories'
 import { listItemsByRange } from '../api/items'
 import { listSubtasksByItems } from '../api/subtasks'
 import { getSettings } from '../api/settings'
-import type { Category, Item, UserSettings } from '../api/types'
+import type { Category, EditableSettings, Item } from '../api/types'
 import { DEFAULT_SETTINGS } from '../api/types'
 import { buildCellMap, type CellMap } from '../lib/cellMap'
 import { buildDateRange, formatDate, type ViewMode } from '../lib/date'
 
-type Settings = Pick<UserSettings, 'day_rollover_hour' | 'default_view'>
+type Settings = EditableSettings
 
 /** 항목별 서브태스크 진행률 (완료/전체) */
 export type SubtaskProgress = Map<string, { done: number; total: number }>
@@ -17,6 +17,12 @@ export interface MatrixData {
   loading: boolean
   error: string | null
   settings: Settings
+  /**
+   * settings 조회가 끝났는지(성공·실패 무관). 저장된 설정을 화면 상태로
+   * 한 번만 반영해야 하는 쪽(월간 카테고리 필터 등)에서 "기본값을 진짜 값으로
+   * 착각하고 덮어쓰는" 것을 막는 데 쓴다.
+   */
+  settingsLoaded: boolean
   categories: Category[]
   items: Item[]
   cellMap: CellMap
@@ -44,6 +50,7 @@ export interface MatrixData {
  */
 export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [subtaskProgress, setSubtaskProgress] = useState<SubtaskProgress>(
@@ -70,6 +77,7 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
       .catch(() => {
         /* 설정 조회 실패는 치명적이지 않음 → 기본값 유지 */
       })
+      .finally(() => alive && setSettingsLoaded(true))
     return () => {
       alive = false
     }
@@ -150,6 +158,7 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     loading,
     error,
     settings,
+    settingsLoaded,
     categories,
     items,
     cellMap,
