@@ -26,6 +26,21 @@ export async function createNoteFolder(name: string): Promise<NoteFolder> {
   return data
 }
 
+/** 폴더 이름 변경 (backlog 9.4) */
+export async function renameNoteFolder(
+  id: string,
+  name: string,
+): Promise<NoteFolder> {
+  const { data, error } = await supabase
+    .from('note_folders')
+    .update({ name })
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw error
+  return data
+}
+
 /** 폴더 삭제. 소속 메모는 지우지 않고 folder_id만 해제한다. */
 export async function removeNoteFolder(id: string): Promise<void> {
   const { error: unlinkError } = await supabase

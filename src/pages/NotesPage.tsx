@@ -6,30 +6,16 @@ import {
   ensureArchiveFolder,
   listNoteFolders,
   removeNoteFolder,
+  renameNoteFolder,
 } from '../api/noteFolders'
 import type { Note, NoteFolder } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
+import NoteTree from '../components/NoteTree'
+import { groupNotes, searchNotes } from '../lib/noteGroups'
 import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
 import { useOnline } from '../lib/useOnline'
 import { useEscapeKey } from '../lib/useEscapeKey'
 import { loadErrorMessage, withRetry } from '../lib/retry'
-
-function PinIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  )
-}
 
 function LockIcon({
   locked,
@@ -60,8 +46,9 @@ function LockIcon({
 
 // 낙서장 화면 (태스크 21: 목록 + 생성/편집/삭제, backlog 2장 1단계: 검색/정렬/고정)
 // 좌측 목록에서 메모를 고르면 우측 편집기에서 제목/본문을 수정한다.
-// 검색·정렬은 클라이언트에서만 처리(서버 변경 없음), 고정은 notes.pinned
-// 컬럼 — 검색/정렬 결과와 무관하게 고정된 메모가 항상 목록 최상단.
+// 목록은 접히는 폴더 그룹(backlog 9.4) — 묶는 규칙은 lib/noteGroups.ts, 표시는
+// components/NoteTree.tsx. 고정(notes.pinned) 메모는 바로가기처럼 맨 위와 원래
+// 폴더 양쪽에 보인다. 검색·정렬은 클라이언트에서만 처리(서버 변경 없음).
 // 진입 시 첫 메모를 자동 선택하지 않는다(프라이버시) — 목록만 보이고
 // 클릭해야 내용이 열린다.
 // 자동저장: ItemNote.tsx 와 같은 debounce(600ms) 패턴(backlog 2.4).
@@ -78,8 +65,9 @@ export default function NotesPage() {
   const [search, setSearch] = useState('')
   const [sortMode, setSortMode] = useState<'recent' | 'title'>('recent')
   const [folders, setFolders] = useState<NoteFolder[]>([])
-  // null = 전체(보관함 제외). 그 외엔 폴더 id(보관함 포함)로 필터
-  const [folderFilter, setFolderFilter] = useState<string | null>(null)
+  // 펼쳐진 폴더 id — 기기별로 기억 (backlog 9.4)
+  const [expanded, setExpanded] = useState<Set<string>>(loadExpanded)
+  const [creatingFolder, setCreatingFolder] = useState(false)
   // 좁은 화면에선 목록과 편집기를 나란히 두지 않고 한 번에 하나만 보여준다
   // (예전엔 세로로 쌓여서, 메모를 고른 뒤 목록 전체를 지나 스크롤해야 편집기가
   //  나왔다 — backlog 8.1)
@@ -112,31 +100,29 @@ export default function NotesPage() {
     [folders],
   )
 
-  // 폴더 필터(전체=보관함 제외) → 검색(제목·본문) → 고정 메모 우선 → 선택한 정렬 기준
-  // archiveFolder가 아직 없으면(로딩 전 또는 schema.sql 미실행) 아무것도 보관함으로
-  // 취급하지 않는다 — null끼리 비교해 전체 메모가 걸러지는 사고를 방지.
-  const visibleNotes = useMemo(() => {
-    const byFolder =
-      folderFilter === null
-        ? archiveFolder
-          ? notes.filter((n) => n.folder_id !== archiveFolder.id)
-          : notes
-        : notes.filter((n) => n.folder_id === folderFilter)
-    const q = search.trim().toLowerCase()
-    const filtered = q
-      ? byFolder.filter(
-          (n) =>
-            n.title.toLowerCase().includes(q) ||
-            n.body.toLowerCase().includes(q),
-        )
-      : byFolder
-    return [...filtered].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
-      return sortMode === 'title'
-        ? a.title.localeCompare(b.title)
-        : b.updated_at.localeCompare(a.updated_at)
+  // 목록 묶기: 고정(바로가기) → 폴더 → 폴더 없음 → 보관함. 검색 중엔 평평한 결과.
+  const groups = useMemo(
+    () => groupNotes(notes, folders, sortMode),
+    [notes, folders, sortMode],
+  )
+  const searchResults = useMemo(
+    () => (search.trim() ? searchNotes(notes, search, sortMode) : null),
+    [notes, search, sortMode],
+  )
+
+  useEffect(() => {
+    saveExpanded(expanded)
+  }, [expanded])
+
+  const setFolderOpen = useCallback((id: string, open: boolean) => {
+    setExpanded((prev) => {
+      if (prev.has(id) === open) return prev
+      const next = new Set(prev)
+      if (open) next.add(id)
+      else next.delete(id)
+      return next
     })
-  }, [notes, search, sortMode, folderFilter, archiveFolder])
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -209,16 +195,17 @@ export default function NotesPage() {
     })
   }
 
-  async function handleNew() {
+  async function handleNew(folderId: string | null = null) {
     setBusy(true)
     setError('')
     try {
       const created = await createNote({
         title: '',
         body: '',
-        folder_id: folderFilter,
+        folder_id: folderId,
       })
       upsertLocal(created)
+      if (folderId) setFolderOpen(folderId, true)
       setSelectedId(created.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '생성에 실패했습니다.')
@@ -227,15 +214,30 @@ export default function NotesPage() {
     }
   }
 
-  async function handleCreateFolder() {
-    const name = window.prompt('폴더 이름을 입력하세요')?.trim()
-    if (!name) return
+  async function handleCreateFolder(name: string) {
+    setCreatingFolder(false)
     setError('')
     try {
       const created = await createNoteFolder(name)
       setFolders((prev) => [...prev, created])
+      setFolderOpen(created.id, true)
     } catch (e) {
       setError(e instanceof Error ? e.message : '폴더 생성에 실패했습니다.')
+    }
+  }
+
+  async function handleRenameFolder(f: NoteFolder, name: string) {
+    setError('')
+    const prevName = f.name
+    // 낙관적 반영 + 실패 시 되돌림
+    setFolders((prev) => prev.map((x) => (x.id === f.id ? { ...x, name } : x)))
+    try {
+      await renameNoteFolder(f.id, name)
+    } catch (e) {
+      setFolders((prev) =>
+        prev.map((x) => (x.id === f.id ? { ...x, name: prevName } : x)),
+      )
+      setError(e instanceof Error ? e.message : '이름 변경에 실패했습니다.')
     }
   }
 
@@ -251,7 +253,7 @@ export default function NotesPage() {
       setNotes((prev) =>
         prev.map((n) => (n.folder_id === f.id ? { ...n, folder_id: null } : n)),
       )
-      if (folderFilter === f.id) setFolderFilter(null)
+      setFolderOpen(f.id, false)
     } catch (e) {
       setError(e instanceof Error ? e.message : '폴더 삭제에 실패했습니다.')
     }
@@ -364,75 +366,28 @@ export default function NotesPage() {
       <main className="grid grid-cols-1 gap-6 px-4 py-4 md:grid-cols-[16rem_1fr] md:px-6 md:py-6">
         {/* 목록 — 좁은 화면에서 메모를 열면 편집기에 자리를 내준다 */}
         <aside className={!isWide && selected ? 'hidden' : undefined}>
-          <button
-            type="button"
-            onClick={handleNew}
-            disabled={busy}
-            className="mb-3 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-          >
-            + 새 메모
-          </button>
-
-          <div className="mb-2 flex flex-wrap items-center gap-1 text-xs">
+          <div className="mb-3 flex gap-2">
             <button
               type="button"
-              onClick={() => setFolderFilter(null)}
-              className={`rounded px-1.5 py-0.5 ${
-                folderFilter === null
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
+              onClick={() => void handleNew()}
+              disabled={busy}
+              className="flex-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
             >
-              전체
+              + 새 메모
             </button>
-            {customFolders.map((f) => (
-              <span key={f.id} className="group inline-flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setFolderFilter(f.id)}
-                  className={`rounded px-1.5 py-0.5 ${
-                    folderFilter === f.id
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
-                  {f.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDeleteFolder(f)}
-                  title="폴더 삭제"
-                  className="hidden px-0.5 text-slate-300 hover:text-slate-600 group-hover:inline"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            {archiveFolder && (
-              <button
-                type="button"
-                onClick={() => setFolderFilter(archiveFolder.id)}
-                className={`rounded px-1.5 py-0.5 ${
-                  folderFilter === archiveFolder.id
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                보관함
-              </button>
-            )}
             <button
               type="button"
-              onClick={() => void handleCreateFolder()}
-              className="rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+              onClick={() => {
+                setSearch('')
+                setCreatingFolder(true)
+              }}
+              className="shrink-0 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
               + 폴더
             </button>
           </div>
 
-          {/* 검색 + 정렬 한 줄. 정렬은 두 값뿐이라 라디오 두 개를 따로 두는 대신
-              누를 때마다 바뀌는 버튼 하나로 합쳤다 — 목록 위 조작 줄이 4줄에서
-              3줄로 줄어든다 (backlog 8.1 화면 밀도) */}
+          {/* 검색 + 정렬 한 줄. 정렬은 두 값뿐이라 누를 때마다 바뀌는 버튼 하나 */}
           <div className="mb-2 flex items-center gap-1">
             <input
               type="text"
@@ -457,56 +412,33 @@ export default function NotesPage() {
             </button>
           </div>
 
-          {loading && <p className="text-sm text-slate-400">불러오는 중…</p>}
-          {!loading && visibleNotes.length === 0 && (
-            <p className="text-sm text-slate-400">
-              {search
-                ? '검색 결과가 없습니다.'
-                : folderFilter !== null
-                  ? '이 폴더에 메모가 없습니다.'
-                  : '메모가 없습니다.'}
-            </p>
+          {loading ? (
+            <p className="text-sm text-slate-400">불러오는 중…</p>
+          ) : (
+            <NoteTree
+              groups={groups}
+              searchResults={searchResults}
+              folders={folders}
+              selectedId={selectedId}
+              expanded={expanded}
+              onToggleFolder={(id) => setFolderOpen(id, !expanded.has(id))}
+              onSelect={(id) => {
+                // 검색 결과에서 고르면 검색을 지운 뒤에도 보이게 그 폴더를 펼친다
+                const fid = notes.find((x) => x.id === id)?.folder_id
+                if (searchResults && fid) setFolderOpen(fid, true)
+                setSelectedId(id)
+              }}
+              onTogglePin={(n) => void handleTogglePin(n)}
+              onMove={(n, fid) => void handleMoveFolder(n, fid)}
+              onNewInFolder={(fid) => void handleNew(fid)}
+              onRenameFolder={(f, name) => void handleRenameFolder(f, name)}
+              onDeleteFolder={(f) => void handleDeleteFolder(f)}
+              creatingFolder={creatingFolder}
+              onCreateFolder={(name) => void handleCreateFolder(name)}
+              onCancelCreateFolder={() => setCreatingFolder(false)}
+              dnd={isWide}
+            />
           )}
-          <ul className="space-y-1">
-            {visibleNotes.map((n) => (
-              <li key={n.id} className="group flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(n.id)}
-                  className={`min-w-0 flex-1 rounded-md px-3 py-2 text-left text-sm ${
-                    n.id === selectedId
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span
-                    className={`block truncate ${
-                      n.title.trim()
-                        ? 'font-medium'
-                        : 'font-medium text-slate-400'
-                    }`}
-                  >
-                    {n.title.trim() || '제목 없음'}
-                  </span>
-                  <span className="block truncate text-xs text-slate-400">
-                    {n.hide_preview ? '🔒 비공개' : n.body.trim() || '내용 없음'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleTogglePin(n)}
-                  title={n.pinned ? '고정 해제' : '목록 상단 고정'}
-                  className={`shrink-0 rounded p-1 ${
-                    n.pinned
-                      ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                      : 'text-slate-300 opacity-0 hover:bg-slate-100 hover:text-slate-500 group-hover:opacity-100'
-                  }`}
-                >
-                  <PinIcon className="size-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
         </aside>
 
         {/* 편집기 */}
@@ -640,4 +572,28 @@ export default function NotesPage() {
       </main>
     </div>
   )
+}
+
+// 펼친 폴더 기억 — 기기별 편의 기능이라 localStorage. 막혀 있거나(사생활 보호
+// 모드 등) 값이 깨져도 "전부 접힘"으로 정상 동작한다.
+const EXPANDED_KEY = 'weekgrid.notes.expandedFolders'
+
+function loadExpanded(): Set<string> {
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY)
+    const arr: unknown = raw ? JSON.parse(raw) : []
+    return new Set(
+      Array.isArray(arr) ? arr.filter((x) => typeof x === 'string') : [],
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function saveExpanded(ids: ReadonlySet<string>) {
+  try {
+    localStorage.setItem(EXPANDED_KEY, JSON.stringify([...ids]))
+  } catch {
+    /* 저장 실패는 무시 — 다음 방문 때 접힌 상태로 시작할 뿐 */
+  }
 }
