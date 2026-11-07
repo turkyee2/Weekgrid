@@ -35,6 +35,7 @@ export default function ItemDetailPanel({
 }: Props) {
   const [content, setContent] = useState(item.content)
   const [participantDraft, setParticipantDraft] = useState('')
+  const [location, setLocation] = useState(item.location ?? '')
   const participants = item.participants ?? []
 
   useEscapeKey(onClose)
@@ -43,6 +44,19 @@ export default function ItemDetailPanel({
   useEffect(() => {
     setContent(item.content)
   }, [item.id, item.content])
+  useEffect(() => {
+    setLocation(item.location ?? '')
+  }, [item.id, item.location])
+
+  // 장소: 입력을 마치면(blur/Enter) 저장, 비우면 null (backlog 9.5)
+  function commitLocation() {
+    const next = location.trim()
+    if (next === (item.location ?? '')) {
+      setLocation(next)
+      return
+    }
+    void onPatch(item.id, { location: next || null })
+  }
 
   function commitContent() {
     const next = content.trim()
@@ -76,6 +90,7 @@ export default function ItemDetailPanel({
     if (hasNote) attached.push('메모')
     if (item.participants?.length) attached.push('참가자')
     if (item.start_time) attached.push('시작 시각')
+    if (item.location) attached.push('장소')
 
     if (attached.length > 0) {
       const ok = window.confirm(
@@ -200,6 +215,25 @@ export default function ItemDetailPanel({
               })()}
             </div>
           </div>
+
+          {/* 장소 — 언제(시작 시각) → 어디서 → 누구와(참가자) 순서 (backlog 9.5) */}
+          <label className="block text-sm font-medium text-slate-700">
+            장소
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              onBlur={commitLocation}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                }
+              }}
+              placeholder="예: 강남역 2번 출구"
+              maxLength={200}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+          </label>
 
           {/* 참가자 태그 */}
           <div className="text-sm font-medium text-slate-700">

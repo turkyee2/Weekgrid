@@ -89,6 +89,7 @@ export async function updateItem(
       | 'category_id'
       | 'start_time'
       | 'participants'
+      | 'location'
       | 'accent'
       | 'show_dday'
       | 'dday_pinned'

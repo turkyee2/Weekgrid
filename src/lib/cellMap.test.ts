@@ -13,6 +13,7 @@ function item(partial: Partial<Item>): Item {
     done: false,
     start_time: null,
     participants: [],
+    location: null,
     accent: null,
     show_dday: false,
     dday_pinned: false,

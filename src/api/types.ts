@@ -23,6 +23,8 @@ export interface Item {
   start_time: string | null
   /** 참가자 이름 태그(자유 텍스트). 계정/공유 아님 (v2 요구사항 13) */
   participants: string[]
+  /** 장소(자유 텍스트 한 줄), null 허용 (backlog 9.5) */
+  location: string | null
   /** 중요도 강조 색 key ('red'|'amber'|'blue') 또는 null=기본 (피드백 #3) */
   accent: string | null
   /** D-day 표시 여부. true면 매트릭스 셀에 이 항목의 date를 기준일로 D-N 배지 표시 */

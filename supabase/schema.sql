@@ -368,3 +368,12 @@ alter table items add column if not exists dday_pinned bool not null default fal
 -- 유지되게 하기 위함.
 alter table user_settings
   add column if not exists month_category_filter text[] not null default '{}';
+
+
+-- ============================================================
+-- 항목 장소 (재실행 안전, backlog 9.5)
+-- ============================================================
+
+-- 항목 상세의 "장소" 한 줄. 참가자처럼 자유 텍스트이며 지도/주소 검증은 없다.
+-- 비어 있으면 null (빈 문자열로 저장하지 않는다 — 클라이언트에서 trim 후 null 처리).
+alter table items add column if not exists location text;
