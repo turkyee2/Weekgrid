@@ -30,3 +30,6 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+# 내부 문서 — 별도 비공개 저장소(Weekgrid-docs)로 관리
+.kiro/

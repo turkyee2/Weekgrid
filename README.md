@@ -96,7 +96,6 @@ src/
 ├─ pages/        LoginPage, MatrixPage, NotesPage
 └─ App.tsx       라우팅 + 인증 가드
 supabase/schema.sql   전체 DB 스키마 + RLS
-.kiro/specs/          요구사항/설계/태스크 스펙 문서
 ```
 
 ## 로드맵 (향후, 미구현)
@@ -110,6 +109,3 @@ supabase/schema.sql   전체 DB 스키마 + RLS
 - **개발 보조**: [Kiro](https://kiro.dev) CLI (AI 에이전트) — 스펙 작성부터 구현·리팩터·문서화까지 페어 프로그래밍.
 - **백엔드(BaaS)**: [Supabase](https://supabase.com) — PostgreSQL + Auth + 자동 REST API + RLS.
 - **호스팅**: [Vercel](https://vercel.com) — `dist/` 정적 배포(CDN) + GitHub 연동 자동 배포.
-
-> 스펙·설계·태스크·백로그 문서는 [`.kiro/specs/weekly-planner/`](.kiro/specs/weekly-planner/)에 있다
-> (requirements / design / tasks / backlog).

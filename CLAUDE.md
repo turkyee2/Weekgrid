@@ -5,6 +5,9 @@
 v2(항목 상세·서브태스크·시간/참가자·연결메모) 완료, Vercel 배포 완료
 (https://weekgrid.vercel.app).
 기존 스펙은 `.kiro/specs/weekly-planner/` 에 있음 — 작업 전 필요한 문서를 먼저 참고.
+`.kiro/`는 **별도 비공개 git 저장소**(본 저장소는 `.gitignore`로 무시). 문서를
+고치면 `.kiro/` 안에서도 따로 커밋한다. 없으면
+`git clone https://github.com/turkyee2/Weekgrid-docs.git .kiro`.
 
 ## 문서 지도 (`.kiro/specs/weekly-planner/`)
 - `requirements.md` — 요구사항 1~9(v1) + 10~17(v2)
