@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listDdayItems } from '../api/items'
 import type { Item } from '../api/types'
+import { withRetry } from '../lib/retry'
+import { useRefetchOnResume } from '../lib/useRefetchOnResume'
 
 /**
  * D-day로 지정된 항목 (헤더 배너, backlog 7-B). 완료 여부와 무관하게 조회한다.
@@ -12,15 +14,19 @@ export function useDdayItems() {
 
   const reload = useCallback(() => {
     setLoading(true)
-    listDdayItems()
+    // 일시적 실패는 자동 재시도, 끝내 실패하면 직전 목록을 유지한다 — 빈 배열로
+    // 바꾸면 배너/배지가 "항목 없음"처럼 조용히 사라진다 (backlog 9.8)
+    withRetry(() => listDdayItems())
       .then(setItems)
-      .catch(() => setItems([]))
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
     void reload()
   }, [reload])
+
+  useRefetchOnResume(reload)
 
   return { items, loading, reload }
 }

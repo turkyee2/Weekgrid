@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createNote, listNotes, removeNote, updateNote } from '../api/notes'
 import {
@@ -11,6 +11,8 @@ import type { Note, NoteFolder } from '../api/types'
 import LogoutButton from '../components/LogoutButton'
 import { MD_UP, useMediaQuery } from '../lib/useMediaQuery'
 import { useOnline } from '../lib/useOnline'
+import { useEscapeKey } from '../lib/useEscapeKey'
+import { loadErrorMessage, withRetry } from '../lib/retry'
 
 function PinIcon({ className }: { className?: string }) {
   return (
@@ -141,12 +143,13 @@ export default function NotesPage() {
     // 메모 목록은 폴더 기능과 별개로 로드한다 — 폴더 쪽이 실패해도
     // (예: schema.sql 재실행 전이라 note_folders 테이블이 없는 경우)
     // 메모 목록 자체는 항상 보여야 한다.
-    listNotes()
+    // 일시적 실패는 자동 재시도 (backlog 9.8)
+    withRetry(listNotes)
       .then((data) => {
         if (alive) setNotes(data)
       })
       .catch((e) => {
-        if (alive) setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
+        if (alive) setError(loadErrorMessage(e))
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -191,6 +194,11 @@ export default function NotesPage() {
       if (p) void persist(p.note, p.title, p.body)
     }
   }, [selectedId])
+
+  // 열린 메모 닫기 (backlog 9.2). 대기 중인 자동저장은 selectedId가 바뀔 때
+  // 위 effect 정리 함수가 flush 하므로 여기선 선택만 푼다.
+  const closeNote = useCallback(() => setSelectedId(null), [])
+  useEscapeKey(closeNote)
 
   function upsertLocal(note: Note) {
     setNotes((prev) => {
@@ -328,9 +336,9 @@ export default function NotesPage() {
     try {
       await removeNote(selected.id)
       setNotes((prev) => {
-        const next = prev.filter((n) => n.id !== selected.id)
-        setSelectedId(next[0]?.id ?? null)
-        return next
+        // 다음 메모를 자동으로 열지 않는다 — 낙서장은 "기본은 비어 있음" (backlog 9.2)
+        setSelectedId(null)
+        return prev.filter((n) => n.id !== selected.id)
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
@@ -560,15 +568,29 @@ export default function NotesPage() {
                     )}
                   </select>
                 </div>
-                <span className="text-xs text-slate-400">
-                  {status === 'saving'
-                    ? '저장 중…'
-                    : status === 'saved'
-                      ? '저장됨'
-                      : status === 'error'
-                        ? '저장 실패'
-                        : ''}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">
+                    {status === 'saving'
+                      ? '저장 중…'
+                      : status === 'saved'
+                        ? '저장됨'
+                        : status === 'error'
+                          ? '저장 실패'
+                          : ''}
+                  </span>
+                  {/* 좁은 화면은 위 '‹ 목록'이 같은 역할 (backlog 9.2) */}
+                  {isWide && (
+                    <button
+                      type="button"
+                      onClick={closeNote}
+                      title="메모 닫기 (Esc)"
+                      aria-label="메모 닫기"
+                      className="rounded px-1.5 text-lg leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
               <input
                 value={title}

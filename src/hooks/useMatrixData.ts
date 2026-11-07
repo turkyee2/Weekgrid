@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { listCategories } from '../api/categories'
 import { listItemsByRange } from '../api/items'
 import { listSubtasksByItems } from '../api/subtasks'
@@ -7,6 +7,8 @@ import type { Category, EditableSettings, Item } from '../api/types'
 import { DEFAULT_SETTINGS } from '../api/types'
 import { buildCellMap, type CellMap } from '../lib/cellMap'
 import { buildDateRange, formatDate, type ViewMode } from '../lib/date'
+import { loadErrorMessage, withRetry } from '../lib/retry'
+import { useRefetchOnResume } from '../lib/useRefetchOnResume'
 
 type Settings = EditableSettings
 
@@ -83,41 +85,67 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
     }
   }, [])
 
-  const loadRange = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [cats, its] = await Promise.all([
-        listCategories(),
-        listItemsByRange(startKey, endKey),
-      ])
-      setCategories(cats)
-      setItems(its)
-      // 보이는 항목들의 서브태스크 진행률을 일괄 조회 (태스크 32)
-      // 부차 데이터이므로 실패해도 매트릭스 자체는 표시한다.
-      try {
-        const subs = await listSubtasksByItems(its.map((i) => i.id))
-        const progress: SubtaskProgress = new Map()
-        for (const s of subs) {
-          const p = progress.get(s.item_id) ?? { done: 0, total: 0 }
-          p.total += 1
-          if (s.done) p.done += 1
-          progress.set(s.item_id, p)
-        }
-        setSubtaskProgress(progress)
-      } catch {
-        setSubtaskProgress(new Map())
+  // 가장 최근 요청만 화면에 반영한다 — 주를 빠르게 넘기거나 재시도가 겹칠 때
+  // 늦게 도착한 이전 범위 응답이 현재 화면을 덮어쓰지 않게.
+  const requestId = useRef(0)
+  // 화면에 이미 데이터가 떠 있는지(조용한 재조회 판단용)
+  const hasData = useRef(false)
+
+  /**
+   * silent=true: 이미 화면에 데이터가 있을 때의 백그라운드 재조회(화면 복귀 등).
+   * 스켈레톤으로 바꾸지 않고, 실패해도 기존 화면을 유지한 채 조용히 넘어간다.
+   */
+  const loadRange = useCallback(
+    async (silent = false) => {
+      const id = ++requestId.current
+      const quiet = silent && hasData.current
+      if (!quiet) {
+        setLoading(true)
+        setError(null)
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '데이터를 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }, [startKey, endKey])
+      try {
+        // 일시적 실패(앱 복귀 직후 네트워크·토큰 갱신 등)는 자동 재시도 (backlog 9.8)
+        const [cats, its] = await withRetry(() =>
+          Promise.all([listCategories(), listItemsByRange(startKey, endKey)]),
+        )
+        if (id !== requestId.current) return
+        setCategories(cats)
+        setItems(its)
+        hasData.current = true
+        setError(null)
+        // 보이는 항목들의 서브태스크 진행률을 일괄 조회 (태스크 32)
+        // 부차 데이터이므로 실패해도 매트릭스 자체는 표시한다.
+        try {
+          const subs = await listSubtasksByItems(its.map((i) => i.id))
+          if (id !== requestId.current) return
+          const progress: SubtaskProgress = new Map()
+          for (const s of subs) {
+            const p = progress.get(s.item_id) ?? { done: 0, total: 0 }
+            p.total += 1
+            if (s.done) p.done += 1
+            progress.set(s.item_id, p)
+          }
+          setSubtaskProgress(progress)
+        } catch {
+          if (id === requestId.current) setSubtaskProgress(new Map())
+        }
+      } catch (e) {
+        if (id !== requestId.current || quiet) return
+        hasData.current = false
+        setError(loadErrorMessage(e))
+      } finally {
+        if (id === requestId.current) setLoading(false)
+      }
+    },
+    [startKey, endKey],
+  )
 
   useEffect(() => {
     void loadRange()
   }, [loadRange])
+
+  // 앱으로 돌아오거나 재연결되면 다시 불러온다 (backlog 9.8)
+  useRefetchOnResume(() => void loadRange(true))
 
   const cellMap = useMemo(() => buildCellMap(items), [items])
 

@@ -5,7 +5,8 @@ import { useEffect } from 'react'
 export function useEscapeKey(onEscape: () => void) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onEscape()
+      // 한글 조합 중의 Esc는 조합 취소용이므로 무시한다
+      if (e.key === 'Escape' && !e.isComposing) onEscape()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
