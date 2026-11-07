@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createItem, removeItem, updateItem } from '../api/items'
+import { parseLeadingTime } from '../lib/parseLeadingTime'
 import { ensureDefaultCategory } from '../api/categories'
 import { upsertSettings } from '../api/settings'
 import type { Item } from '../api/types'
@@ -173,10 +174,13 @@ export default function MatrixPage() {
         ? Math.max(...existing.map((i) => i.sort_order)) + 1
         : 0
       try {
+        // "20:00 저녁약속" → 시작 시각 20:00 + 내용 "저녁약속" (backlog 9.3)
+        const parsed = parseLeadingTime(content)
         const created = await createItem({
           category_id: categoryId,
           date,
-          content,
+          content: parsed.content,
+          start_time: parsed.start_time,
           sort_order,
         })
         upsertItemLocal(created)
