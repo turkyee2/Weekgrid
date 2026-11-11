@@ -377,3 +377,17 @@ alter table user_settings
 -- 항목 상세의 "장소" 한 줄. 참가자처럼 자유 텍스트이며 지도/주소 검증은 없다.
 -- 비어 있으면 null (빈 문자열로 저장하지 않는다 — 클라이언트에서 trim 후 null 처리).
 alter table items add column if not exists location text;
+
+
+-- ============================================================
+-- 주 시작 요일 (재실행 안전, backlog 7-A)
+-- ============================================================
+
+-- 0 = 일요일, 1 = 월요일(기본). JS Date.getDay() 값을 그대로 쓴다.
+-- 기기를 옮겨도 같은 달력이 보여야 하므로 localStorage 가 아니라 여기에 둔다
+-- (다크 모드는 기기별 취향이라 localStorage — lib/theme.ts 참고).
+alter table user_settings
+  add column if not exists week_start smallint not null default 1;
+alter table user_settings drop constraint if exists user_settings_week_start_check;
+alter table user_settings
+  add constraint user_settings_week_start_check check (week_start in (0, 1));

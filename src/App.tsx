@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './lib/useAuth'
+import { useApplyTheme } from './lib/theme'
 import InstallPrompt from './components/InstallPrompt'
 import LoginPage from './pages/LoginPage'
 import MatrixPage from './pages/MatrixPage'
@@ -7,6 +8,8 @@ import NotesPage from './pages/NotesPage'
 
 function App() {
   const { session, loading } = useAuth()
+  // 다크 모드 적용 + 'system' 일 때 OS 전환 추적 (로그인 화면 포함 전 화면)
+  useApplyTheme()
 
   // 세션 확인 중에는 잠깐 대기 (로그인 화면이 깜빡이는 것 방지)
   if (loading) {

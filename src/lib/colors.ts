@@ -40,8 +40,14 @@ export const ACCENT_COLORS: AccentColor[] = [
   { key: 'blue', label: '파랑', hex: '#2563eb' }, // blue-600 (정보)
 ]
 
-/** accent key → 텍스트 색 HEX (없거나 미지정이면 undefined) */
+/**
+ * accent key → 텍스트 색 (없거나 미지정이면 undefined).
+ * HEX 대신 CSS 변수(index.css 의 --accent-*)를 돌려준다 — 다크 모드에서 같은
+ * 키가 더 밝은 색으로 바뀌어야 어두운 배경에서도 읽히기 때문(backlog 7-A).
+ * 견본(swatch)처럼 고정 색이 필요한 곳은 ACCENT_COLORS[].hex 를 그대로 쓴다.
+ */
 export function accentHex(accent: string | null | undefined): string | undefined {
   if (!accent) return undefined
-  return ACCENT_COLORS.find((a) => a.key === accent)?.hex
+  const found = ACCENT_COLORS.find((a) => a.key === accent)
+  return found ? `var(--accent-${found.key})` : undefined
 }

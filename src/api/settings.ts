@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { normalizeWeekStart } from '../lib/date'
 import { DEFAULT_SETTINGS, type EditableSettings } from './types'
 
 // 사용자 설정 API (태스크 9)
@@ -6,16 +7,34 @@ import { DEFAULT_SETTINGS, type EditableSettings } from './types'
 
 /** 설정 조회 (행이 없으면 기본값 반환) */
 export async function getSettings(): Promise<EditableSettings> {
+  // select('*'): 컬럼을 하나씩 나열하면 schema.sql 재실행 전(새 컬럼이 아직 없을 때)
+  // 조회 자체가 실패해 다른 설정까지 전부 기본값으로 돌아간다. 전체를 받고
+  // 없는 값은 아래 정규화에서 기본값으로 채운다.
   const { data, error } = await supabase
     .from('user_settings')
-    .select('day_rollover_hour, default_view, month_category_filter')
+    .select('*')
     .maybeSingle()
   if (error) throw error
-  if (!data) return DEFAULT_SETTINGS
+  return normalizeSettings(data)
+}
+
+/** DB 행(또는 null) → 앱 설정. 없거나 비정상인 필드는 기본값으로 */
+export function normalizeSettings(
+  row: Partial<Record<keyof EditableSettings, unknown>> | null,
+): EditableSettings {
+  if (!row) return DEFAULT_SETTINGS
+  const rollover = row.day_rollover_hour
   return {
-    ...data,
+    day_rollover_hour:
+      typeof rollover === 'number' && rollover >= 0 && rollover <= 23
+        ? rollover
+        : DEFAULT_SETTINGS.day_rollover_hour,
+    default_view: row.default_view === 'month' ? 'month' : 'week',
     // 컬럼이 아직 없거나 null 인 경우(스키마 재실행 전)에도 배열로 정규화
-    month_category_filter: data.month_category_filter ?? [],
+    month_category_filter: Array.isArray(row.month_category_filter)
+      ? (row.month_category_filter as string[])
+      : [],
+    week_start: normalizeWeekStart(row.week_start),
   }
 }
 

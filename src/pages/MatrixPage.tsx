@@ -127,9 +127,9 @@ export default function MatrixPage() {
   // 렌더용 날짜 범위 (주간 7일 / 월간 6주 그리드 + monthStart/monthEnd)
   const anchorKey = logicalToday(anchor, 0) // 안정적인 의존성 키
   const dateRange = useMemo(
-    () => buildDateRange(viewMode, anchor),
+    () => buildDateRange(viewMode, anchor, settings.week_start),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewMode, anchorKey],
+    [viewMode, anchorKey, settings.week_start],
   )
 
   const goPrev = useCallback(
@@ -268,7 +268,7 @@ export default function MatrixPage() {
       <main className="px-4 py-4 md:px-6 md:py-6">
         <div className="mb-4">
           <ViewHeader
-            label={viewLabel(viewMode, anchor)}
+            label={viewLabel(viewMode, anchor, settings.week_start)}
             viewMode={viewMode}
             onPrev={goPrev}
             onNext={goNext}
@@ -372,6 +372,7 @@ export default function MatrixPage() {
               monthStart={dateRange.monthStart!}
               monthEnd={dateRange.monthEnd!}
               today={today}
+              weekStart={settings.week_start}
               onSelectDate={handleSelectDate}
             />
           </>

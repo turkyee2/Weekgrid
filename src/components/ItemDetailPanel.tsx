@@ -104,7 +104,7 @@ export default function ItemDetailPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-slate-900/20" />
+      <div className="absolute inset-0 bg-slate-900/20 dark:bg-black/50" />
       <aside
         className="relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}

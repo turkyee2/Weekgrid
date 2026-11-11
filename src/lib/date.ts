@@ -4,15 +4,37 @@
 //   new Date('2026-07-20')는 UTC로 해석돼 하루 밀릴 수 있으므로 절대 쓰지 않는다.
 //   문자열↔Date 변환은 아래 formatDate / parseDate 만 사용한다.
 
-/** 주 시작 요일: 1 = 월요일 (JS getDay(): 0=일 … 6=토) */
-export const WEEK_START = 1
+/**
+ * 주 시작 요일 (JS getDay() 기준: 0 = 일요일, 1 = 월요일).
+ * 사용자 설정 `user_settings.week_start` 로 고른다. 기본은 월요일.
+ */
+export type WeekStart = 0 | 1
+export const DEFAULT_WEEK_START: WeekStart = 1
+
+/** getDay() 순서(일~토)의 요일 이름 */
+const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+/** 그 날짜의 요일 한 글자 ('월', '화', …) */
+export function weekdayName(d: Date): string {
+  return WEEKDAY_NAMES[d.getDay()]
+}
+
+/** 주 시작 요일부터 7개의 요일 헤더 (월요일 시작: 월~일, 일요일 시작: 일~토) */
+export function weekdayHeaders(weekStart: WeekStart = DEFAULT_WEEK_START): string[] {
+  return Array.from({ length: 7 }, (_, i) => WEEKDAY_NAMES[(weekStart + i) % 7])
+}
+
+/** 알 수 없는 값(스키마 재실행 전 undefined 등)을 안전한 주 시작 요일로 */
+export function normalizeWeekStart(v: unknown): WeekStart {
+  return v === 0 ? 0 : 1
+}
 
 export type ViewMode = 'week' | 'month'
 
 export interface DateRange {
-  /** 화면에 그릴 첫 날짜(월요일) */
+  /** 화면에 그릴 첫 날짜(주 시작 요일) */
   start: Date
-  /** 화면에 그릴 마지막 날짜(일요일) */
+  /** 화면에 그릴 마지막 날짜(주 시작 요일 + 6일) */
   end: Date
   /** start~end 를 하루 단위로 펼친 배열 */
   dates: Date[]
@@ -49,9 +71,9 @@ export function addMonths(d: Date, n: number): Date {
   return first
 }
 
-/** d가 속한 주의 시작일(월요일)을 반환 */
-export function startOfWeek(d: Date): Date {
-  const diff = (d.getDay() - WEEK_START + 7) % 7
+/** d가 속한 주의 시작일(주 시작 요일)을 반환 */
+export function startOfWeek(d: Date, weekStart: WeekStart = DEFAULT_WEEK_START): Date {
+  const diff = (d.getDay() - weekStart + 7) % 7
   return addDays(d, -diff)
 }
 
@@ -68,20 +90,24 @@ function eachDay(start: Date, end: Date): Date[] {
 
 /**
  * 뷰 모드 + 기준일 → 화면에 그릴 날짜 범위.
- * - week: 그 주 월요일~일요일 (7일)
- * - month: 그 달을 덮는 달력 그리드(월요일 시작, 이웃 달 며칠 포함, 항상 7의 배수 35/42일)
+ * - week: 그 주 시작 요일부터 7일
+ * - month: 그 달을 덮는 달력 그리드(주 시작 요일부터, 이웃 달 며칠 포함, 항상 7의 배수 35/42일)
  */
-export function buildDateRange(mode: ViewMode, anchor: Date): DateRange {
+export function buildDateRange(
+  mode: ViewMode,
+  anchor: Date,
+  weekStart: WeekStart = DEFAULT_WEEK_START,
+): DateRange {
   if (mode === 'week') {
-    const start = startOfWeek(anchor)
+    const start = startOfWeek(anchor, weekStart)
     const end = addDays(start, 6)
     return { start, end, dates: eachDay(start, end) }
   }
   // month
   const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
   const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0)
-  const start = startOfWeek(monthStart)
-  const end = addDays(startOfWeek(monthEnd), 6)
+  const start = startOfWeek(monthStart, weekStart)
+  const end = addDays(startOfWeek(monthEnd, weekStart), 6)
   return { start, end, dates: eachDay(start, end), monthStart, monthEnd }
 }
 
@@ -97,11 +123,11 @@ export function logicalToday(now: Date, rolloverHour: number): string {
   return formatDate(shifted)
 }
 
-/** 'N월 M주차' — 그 주 월요일이 그 달의 몇 번째 주인지로 정의 */
-export function weekLabel(anchor: Date): string {
-  const monday = startOfWeek(anchor)
-  const month = monday.getMonth() + 1
-  const weekOfMonth = Math.ceil(monday.getDate() / 7)
+/** 'N월 M주차' — 그 주의 시작일이 그 달의 몇 번째 주인지로 정의 */
+export function weekLabel(anchor: Date, weekStart: WeekStart = DEFAULT_WEEK_START): string {
+  const first = startOfWeek(anchor, weekStart)
+  const month = first.getMonth() + 1
+  const weekOfMonth = Math.ceil(first.getDate() / 7)
   return `${month}월 ${weekOfMonth}주차`
 }
 
@@ -111,8 +137,12 @@ export function monthLabel(anchor: Date): string {
 }
 
 /** 뷰 모드에 맞는 상단 라벨 */
-export function viewLabel(mode: ViewMode, anchor: Date): string {
-  return mode === 'week' ? weekLabel(anchor) : monthLabel(anchor)
+export function viewLabel(
+  mode: ViewMode,
+  anchor: Date,
+  weekStart: WeekStart = DEFAULT_WEEK_START,
+): string {
+  return mode === 'week' ? weekLabel(anchor, weekStart) : monthLabel(anchor)
 }
 
 /** 'YYYY-MM-DD' 기준일까지 남은/지난 일수 배지. target === today → 'D-day' */

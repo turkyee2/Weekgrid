@@ -1,3 +1,5 @@
+import { DEFAULT_WEEK_START, type WeekStart } from '../lib/date'
+
 // DB 행 타입 (태스크 9)
 // schema.sql 의 테이블과 1:1 대응. 나중에 `supabase gen types typescript` 로
 // 자동 생성 타입으로 교체할 수 있으나, 지금은 수동 정의로 충분하다.
@@ -87,13 +89,15 @@ export interface UserSettings {
   default_view: 'week' | 'month'
   /** 월간 뷰 카테고리 필터로 고른 category id 목록. 빈 배열 = 전체 표시 (backlog 8.2) */
   month_category_filter: string[]
+  /** 주 시작 요일 (0 = 일요일, 1 = 월요일). 스키마 재실행 전엔 컬럼이 없을 수 있다 (backlog 7-A) */
+  week_start: WeekStart
   updated_at: string
 }
 
 /** 앱이 읽고 쓰는 설정 필드(행 메타데이터 제외) */
 export type EditableSettings = Pick<
   UserSettings,
-  'day_rollover_hour' | 'default_view' | 'month_category_filter'
+  'day_rollover_hour' | 'default_view' | 'month_category_filter' | 'week_start'
 >
 
 /** user_settings 행이 아직 없을 때 사용할 기본값 */
@@ -101,4 +105,5 @@ export const DEFAULT_SETTINGS: EditableSettings = {
   day_rollover_hour: 0,
   default_view: 'week',
   month_category_filter: [],
+  week_start: DEFAULT_WEEK_START,
 }

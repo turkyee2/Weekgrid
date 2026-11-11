@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Category, Item } from '../api/types'
 import { cellItems, type CellMap } from '../lib/cellMap'
-import { dDayLabel, formatDate } from '../lib/date'
+import { dDayLabel, formatDate, weekdayName } from '../lib/date'
 import { accentHex } from '../lib/colors'
 import { isHoliday } from '../lib/holidays'
 
@@ -14,8 +14,6 @@ import { isHoliday } from '../lib/holidays'
 // 데이터 모델은 그대로다 — 여전히 (카테고리, 날짜) 셀이고, 화면에 늘어놓는
 // 방식만 다르다. 날짜가 구분 헤더, 그 아래 항목이 있는 카테고리만 나열한다.
 // 빈 카테고리를 다 보여주면 7일 × 카테고리 수만큼 빈 줄이 생겨 못 쓴다.
-
-const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 
 interface Props {
   categories: Category[]
@@ -76,7 +74,7 @@ export default function WeekAgenda({
 
   return (
     <div className="space-y-4">
-      {dates.map((d, i) => {
+      {dates.map((d) => {
         const dateKey = formatDate(d)
         const isToday = dateKey === today
         const holiday = isHoliday(dateKey) || d.getDay() === 0
@@ -101,7 +99,7 @@ export default function WeekAgenda({
               }`}
             >
               <span className={holiday && !isToday ? 'text-red-500' : undefined}>
-                {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[i]})
+                {d.getMonth() + 1}월 {d.getDate()}일 ({weekdayName(d)})
               </span>
               {isToday && (
                 <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-medium text-white">

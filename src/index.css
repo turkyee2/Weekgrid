@@ -28,3 +28,81 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* 항목 중요도(accent) 텍스트 색 — lib/colors.ts accentHex() 가 이 변수를 가리킨다 */
+:root {
+  --accent-red: #dc2626; /* red-600 */
+  --accent-amber: #d97706; /* amber-600 */
+  --accent-blue: #2563eb; /* blue-600 */
+}
+
+/*
+  ── 다크 모드 (backlog 7-A) ─────────────────────────────────────
+  <html class="dark"> 일 때 앱이 쓰는 팔레트(slate·indigo·red·rose·white)를
+  다크용 값으로 바꿔 끼운다. 컴포넌트는 기존 클래스 그대로 둔다(lib/theme.ts 참고).
+  - 밝기 순서를 뒤집는다: 배경으로 쓰는 밝은 단계(white·50·100)는 어둡게,
+    본문으로 쓰는 어두운 단계(700~900)는 밝게.
+  - white 는 "표면색"으로 쓰이므로 slate-900 으로. 그 결과 indigo-600 버튼의
+    text-white 는 어두운 글자가 되고, 버튼 자체는 밝은 indigo(400)로 바뀌어
+    대비가 유지된다.
+  - 개별 보정이 필요하면 dark: 변형(아래 custom-variant)을 쓴다.
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  color-scheme: dark;
+
+  --color-white: oklch(20.8% 0.042 265.755); /* slate-900 */
+
+  --color-slate-50: oklch(24% 0.042 262);
+  --color-slate-100: oklch(27.9% 0.041 260.031);
+  --color-slate-200: oklch(32% 0.043 258);
+  --color-slate-300: oklch(37.2% 0.044 257.287);
+  --color-slate-400: oklch(64% 0.04 257);
+  --color-slate-500: oklch(70.4% 0.04 256.788);
+  --color-slate-600: oklch(77% 0.03 255);
+  --color-slate-700: oklch(86.9% 0.022 252.894);
+  --color-slate-800: oklch(92.9% 0.013 255.508);
+  --color-slate-900: oklch(96.8% 0.007 247.896);
+  --color-slate-950: oklch(98.4% 0.003 247.858);
+
+  --color-indigo-50: oklch(28% 0.08 277);
+  --color-indigo-100: oklch(32% 0.11 277);
+  --color-indigo-200: oklch(39.8% 0.195 277.366);
+  --color-indigo-300: oklch(45.7% 0.24 277.023);
+  --color-indigo-400: oklch(58.5% 0.233 277.117);
+  --color-indigo-500: oklch(73% 0.15 276);
+  --color-indigo-600: oklch(67.3% 0.182 276.935);
+  --color-indigo-700: oklch(78.5% 0.115 274.713);
+  --color-indigo-800: oklch(87% 0.065 274.039);
+  --color-indigo-900: oklch(93% 0.034 272.788);
+  --color-indigo-950: oklch(96.2% 0.018 272.314);
+
+  --color-red-50: oklch(27% 0.07 22);
+  --color-red-100: oklch(31% 0.09 22);
+  --color-red-200: oklch(39.6% 0.141 25.723);
+  --color-red-300: oklch(50.5% 0.18 27);
+  --color-red-400: oklch(63.7% 0.237 25.331);
+  --color-red-500: oklch(70.4% 0.191 22.216);
+  --color-red-600: oklch(74% 0.16 22);
+  --color-red-700: oklch(80.8% 0.114 19.571);
+  --color-red-800: oklch(88.5% 0.062 18.334);
+  --color-red-900: oklch(93.6% 0.032 17.717);
+  --color-red-950: oklch(97.1% 0.013 17.38);
+
+  --color-rose-50: oklch(27% 0.07 14);
+  --color-rose-100: oklch(31% 0.09 13);
+  --color-rose-200: oklch(41% 0.159 10.272);
+  --color-rose-300: oklch(51.4% 0.2 16.935);
+  --color-rose-400: oklch(64.5% 0.246 16.439);
+  --color-rose-500: oklch(71.2% 0.194 13.428);
+  --color-rose-600: oklch(75% 0.16 12);
+  --color-rose-700: oklch(81% 0.117 11.638);
+  --color-rose-800: oklch(89.2% 0.058 10.001);
+  --color-rose-900: oklch(94.1% 0.03 12.58);
+  --color-rose-950: oklch(96.9% 0.015 12.422);
+
+  --accent-red: #f87171; /* red-400 */
+  --accent-amber: #fbbf24; /* amber-400 */
+  --accent-blue: #60a5fa; /* blue-400 */
+}

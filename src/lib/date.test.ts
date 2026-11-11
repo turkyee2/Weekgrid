@@ -8,7 +8,11 @@ import {
   logicalToday,
   monthLabel,
   parseDate,
+  normalizeWeekStart,
   startOfWeek,
+  viewLabel,
+  weekdayHeaders,
+  weekdayName,
   weekLabel,
 } from './date'
 
@@ -118,5 +122,118 @@ describe('dDayLabel', () => {
   })
   it('기준일이 과거면 D+N', () => {
     expect(dDayLabel('2026-07-24', '2026-07-27')).toBe('D+3')
+  })
+})
+
+// ── 주 시작 요일 설정 (backlog 7-A) ─────────────────────────────
+// 2024-01: 1일 월요일, 6일 토요일, 7일 일요일, 31일 수요일.
+describe('startOfWeek (일요일 시작)', () => {
+  it('일요일은 그대로', () => {
+    expect(formatDate(startOfWeek(new Date(2024, 0, 7), 0))).toBe('2024-01-07')
+  })
+  it('토요일은 그 주 일요일로 되돌린다 (6일 전)', () => {
+    expect(formatDate(startOfWeek(new Date(2024, 0, 6), 0))).toBe('2023-12-31')
+  })
+  it('월요일은 전날 일요일로', () => {
+    expect(formatDate(startOfWeek(new Date(2024, 0, 1), 0))).toBe('2023-12-31')
+  })
+  it('기본값(인자 생략)은 월요일 시작을 유지한다', () => {
+    expect(formatDate(startOfWeek(new Date(2024, 0, 7)))).toBe(
+      formatDate(startOfWeek(new Date(2024, 0, 7), 1)),
+    )
+  })
+  it('어느 요일이든 결과는 항상 일요일이고 기준일과 0~6일 차이', () => {
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(2024, 0, 1 + i)
+      const s = startOfWeek(d, 0)
+      expect(s.getDay()).toBe(0)
+      const diff = Math.round((d.getTime() - s.getTime()) / 86_400_000)
+      expect(diff).toBeGreaterThanOrEqual(0)
+      expect(diff).toBeLessThanOrEqual(6)
+    }
+  })
+})
+
+describe('buildDateRange - 일요일 시작', () => {
+  it('week: 일요일~토요일 7일이며 기준일을 포함한다', () => {
+    const r = buildDateRange('week', new Date(2024, 0, 3), 0) // 수요일
+    expect(r.dates).toHaveLength(7)
+    expect(formatDate(r.start)).toBe('2023-12-31')
+    expect(formatDate(r.end)).toBe('2024-01-06')
+    expect(r.start.getDay()).toBe(0)
+    expect(r.end.getDay()).toBe(6)
+    expect(r.dates.map(formatDate)).toContain('2024-01-03')
+  })
+  it('week: 기준일이 일요일이면 그 일요일부터 시작', () => {
+    const r = buildDateRange('week', new Date(2024, 0, 7), 0)
+    expect(formatDate(r.start)).toBe('2024-01-07')
+  })
+  it('month: 일요일 시작·토요일 끝, 달 전체를 덮는다', () => {
+    const r = buildDateRange('month', new Date(2024, 0, 15), 0)
+    expect(r.start.getDay()).toBe(0)
+    expect(r.end.getDay()).toBe(6)
+    expect(r.dates.length % 7).toBe(0)
+    // 2024-01: 12-31(일) ~ 02-03(토), 35일
+    expect(formatDate(r.start)).toBe('2023-12-31')
+    expect(formatDate(r.end)).toBe('2024-02-03')
+    expect(r.dates).toHaveLength(35)
+  })
+  it('month: 1일이 일요일인 달은 이전 달 날짜 없이 시작', () => {
+    // 2024-09-01 은 일요일
+    const r = buildDateRange('month', new Date(2024, 8, 10), 0)
+    expect(formatDate(r.start)).toBe('2024-09-01')
+    // 월요일 시작이면 같은 달이 8월 26일부터 시작
+    expect(formatDate(buildDateRange('month', new Date(2024, 8, 10), 1).start)).toBe(
+      '2024-08-26',
+    )
+  })
+  it('month: 두 설정 모두 날짜 연속(하루 간격, 중복 없음)', () => {
+    for (const ws of [0, 1] as const) {
+      for (let m = 0; m < 12; m++) {
+        const r = buildDateRange('month', new Date(2026, m, 15), ws)
+        for (let i = 1; i < r.dates.length; i++) {
+          expect(formatDate(addDays(r.dates[i - 1], 1))).toBe(formatDate(r.dates[i]))
+        }
+        expect(r.dates.length === 35 || r.dates.length === 42 || r.dates.length === 28).toBe(true)
+      }
+    }
+  })
+})
+
+describe('요일 이름', () => {
+  it('weekdayHeaders: 월요일 시작은 월~일, 일요일 시작은 일~토', () => {
+    expect(weekdayHeaders(1)).toEqual(['월', '화', '수', '목', '금', '토', '일'])
+    expect(weekdayHeaders(0)).toEqual(['일', '월', '화', '수', '목', '금', '토'])
+    expect(weekdayHeaders()).toEqual(weekdayHeaders(1))
+  })
+  it('weekdayName: 날짜의 실제 요일', () => {
+    expect(weekdayName(new Date(2024, 0, 1))).toBe('월')
+    expect(weekdayName(new Date(2024, 0, 7))).toBe('일')
+  })
+  it('헤더 순서와 buildDateRange 날짜의 요일이 항상 일치', () => {
+    for (const ws of [0, 1] as const) {
+      const r = buildDateRange('week', new Date(2026, 10, 12), ws)
+      expect(r.dates.map(weekdayName)).toEqual(weekdayHeaders(ws))
+      const m = buildDateRange('month', new Date(2026, 10, 12), ws)
+      expect(m.dates.slice(0, 7).map(weekdayName)).toEqual(weekdayHeaders(ws))
+    }
+  })
+})
+
+describe('주 시작 요일 라벨·정규화', () => {
+  it('weekLabel: 일요일 시작이면 그 주 일요일 기준', () => {
+    // 2024-01-03(수) → 일요일 시작 주는 2023-12-31 시작 → 12월 5주차
+    expect(weekLabel(new Date(2024, 0, 3), 0)).toBe('12월 5주차')
+    expect(viewLabel('week', new Date(2024, 0, 3), 0)).toBe('12월 5주차')
+    // 월요일 시작은 기존과 동일
+    expect(viewLabel('week', new Date(2024, 0, 3))).toBe('1월 1주차')
+  })
+  it('normalizeWeekStart: 0만 일요일, 그 외(undefined·null·이상값)는 월요일', () => {
+    expect(normalizeWeekStart(0)).toBe(0)
+    expect(normalizeWeekStart(1)).toBe(1)
+    expect(normalizeWeekStart(undefined)).toBe(1)
+    expect(normalizeWeekStart(null)).toBe(1)
+    expect(normalizeWeekStart(3)).toBe(1)
+    expect(normalizeWeekStart('0')).toBe(1)
   })
 })

@@ -1,14 +1,13 @@
 import { useMemo } from 'react'
 import type { Category } from '../api/types'
 import { dayItems, type CellMap } from '../lib/cellMap'
-import { formatDate } from '../lib/date'
+import { DEFAULT_WEEK_START, formatDate, weekdayHeaders, type WeekStart } from '../lib/date'
 import { isHoliday } from '../lib/holidays'
 
 // 월간 달력 그리드 (태스크 18 · design 3.6-B)
-// 주(월~일) = 한 행. 날짜 칸에 그날 항목을 카테고리 색으로 요약(+N 축약).
+// 주(주 시작 요일부터 7일) = 한 행. 날짜 칸에 그날 항목을 카테고리 색으로 요약(+N 축약).
 // 이웃 달 날짜는 흐리게, 논리적 오늘 강조. 날짜 클릭 → onSelectDate(드릴다운은 태스크 19).
 
-const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 const MAX_VISIBLE = 3 // 칸에 보여줄 최대 항목 수
 
 interface Props {
@@ -18,6 +17,8 @@ interface Props {
   monthStart: Date
   monthEnd: Date
   today: string
+  /** 요일 헤더 순서 — dates 를 만든 주 시작 요일과 같아야 한다 */
+  weekStart?: WeekStart
   onSelectDate: (date: Date) => void
 }
 
@@ -28,6 +29,7 @@ export default function MonthCalendar({
   monthStart,
   monthEnd,
   today,
+  weekStart = DEFAULT_WEEK_START,
   onSelectDate,
 }: Props) {
   const categoryIds = useMemo(() => categories.map((c) => c.id), [categories])
@@ -48,7 +50,7 @@ export default function MonthCalendar({
     <div className="overflow-hidden rounded-md border border-slate-200">
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-        {WEEKDAYS.map((w) => (
+        {weekdayHeaders(weekStart).map((w) => (
           <div key={w} className="px-2 py-1.5 text-center text-xs text-slate-400">
             {w}
           </div>

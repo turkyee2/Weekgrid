@@ -7,6 +7,7 @@ import type { Category, EditableSettings, Item } from '../api/types'
 import { DEFAULT_SETTINGS } from '../api/types'
 import { buildCellMap, type CellMap } from '../lib/cellMap'
 import { buildDateRange, formatDate, type ViewMode } from '../lib/date'
+import { readCachedWeekStart, writeCachedWeekStart } from '../lib/weekStartCache'
 import { loadErrorMessage, withRetry } from '../lib/retry'
 import { useRefetchOnResume } from '../lib/useRefetchOnResume'
 
@@ -51,7 +52,12 @@ export interface MatrixData {
  * - items 로 셀 맵(cellMap) 파생
  */
 export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  // 주 시작 요일은 조회 범위를 바꾸므로, 마지막으로 본 값을 기기에 캐시해 초기값으로
+  // 쓴다 — 안 그러면 일요일 시작 사용자는 매번 월요일 주를 먼저 불러왔다가 다시 조회한다.
+  const [settings, setSettings] = useState<Settings>(() => ({
+    ...DEFAULT_SETTINGS,
+    week_start: readCachedWeekStart(),
+  }))
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -63,10 +69,11 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
 
   // 범위는 (mode, anchor의 날짜)에만 의존 → Date 객체 identity 변화로 인한 재조회 방지
   const anchorKey = formatDate(anchor)
+  const weekStart = settings.week_start
   const range = useMemo(
-    () => buildDateRange(mode, anchor),
+    () => buildDateRange(mode, anchor, weekStart),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, anchorKey],
+    [mode, anchorKey, weekStart],
   )
   const startKey = formatDate(range.start)
   const endKey = formatDate(range.end)
@@ -75,7 +82,11 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
   useEffect(() => {
     let alive = true
     getSettings()
-      .then((s) => alive && setSettings(s))
+      .then((s) => {
+        if (!alive) return
+        setSettings(s)
+        writeCachedWeekStart(s.week_start)
+      })
       .catch(() => {
         /* 설정 조회 실패는 치명적이지 않음 → 기본값 유지 */
       })
@@ -167,6 +178,7 @@ export function useMatrixData(mode: ViewMode, anchor: Date): MatrixData {
   // 설정 로컬 반영 (태스크 20) — upsert 성공 후 재조회 없이 즉시 적용
   const setSettingsLocal = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...patch }))
+    if (patch.week_start !== undefined) writeCachedWeekStart(patch.week_start)
   }, [])
 
   // 진행률 로컬 반영 (태스크 32) — 상세 패널에서 서브태스크 변경 시 즉시 배지 갱신

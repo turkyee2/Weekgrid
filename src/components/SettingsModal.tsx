@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { upsertSettings } from '../api/settings'
 import type { Category, UserSettings } from '../api/types'
-import type { ViewMode } from '../lib/date'
+import type { ViewMode, WeekStart } from '../lib/date'
+import { setThemePref, THEME_OPTIONS, useThemePref } from '../lib/theme'
 import { exportItemsCsv } from '../lib/exportItems'
 import CategoryManager from './CategoryManager'
 import FeedbackForm from './FeedbackForm'
@@ -11,7 +12,19 @@ import { useEscapeKey } from '../lib/useEscapeKey'
 // 환경설정 모달 (태스크 20·26·36·37) — 탭 구조: 일반 / 카테고리 / 데이터 / 피드백
 // 주의: CategoryManager·FeedbackForm 이 자체 <form> 을 가지므로 이 모달은 <div> 로 감싼다.
 
-type Settings = Pick<UserSettings, 'day_rollover_hour' | 'default_view'>
+type Settings = Pick<UserSettings, 'day_rollover_hour' | 'default_view' | 'week_start'>
+
+const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
+  { value: 1, label: '월요일' },
+  { value: 0, label: '일요일' },
+]
+
+/** 세그먼트 버튼 공통 스타일 (기본 뷰·주 시작·테마) */
+function segClass(active: boolean): string {
+  return `flex-1 rounded px-3 py-1 ${
+    active ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-800'
+  }`
+}
 type Tab = 'general' | 'categories' | 'data' | 'feedback'
 
 const TABS: { id: Tab; label: string }[] = [
@@ -25,7 +38,7 @@ interface Props {
   settings: Settings
   categories: Category[]
   onClose: () => void
-  onSaved: (patch: Settings) => void
+  onSaved: (patch: Partial<Settings>) => void
   onCategoriesChanged: () => void
 }
 
@@ -39,6 +52,8 @@ export default function SettingsModal({
   const [tab, setTab] = useState<Tab>('general')
   const [rollover, setRollover] = useState<number>(settings.day_rollover_hour)
   const [defaultView, setDefaultView] = useState<ViewMode>(settings.default_view)
+  const [weekStart, setWeekStart] = useState<WeekStart>(settings.week_start)
+  const themePref = useThemePref()
   useEscapeKey(onClose)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -47,10 +62,13 @@ export default function SettingsModal({
   async function handleSave() {
     setBusy(true)
     setError('')
-    const patch: Settings = {
+    const patch: Partial<Settings> = {
       day_rollover_hour: rollover,
       default_view: defaultView,
     }
+    // 바꿨을 때만 보낸다 — schema.sql 재실행 전(week_start 컬럼 없음)에도
+    // 다른 설정 저장은 계속 되게 하기 위함.
+    if (weekStart !== settings.week_start) patch.week_start = weekStart
     try {
       await upsertSettings(patch)
       onSaved(patch)
@@ -76,7 +94,7 @@ export default function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6 py-8"
+      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-6 dark:bg-black/60 py-8"
       onClick={onClose}
     >
       <div
@@ -146,16 +164,57 @@ export default function SettingsModal({
                       key={m}
                       type="button"
                       onClick={() => setDefaultView(m)}
-                      className={`flex-1 rounded px-3 py-1 ${
-                        defaultView === m
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
+                      aria-pressed={defaultView === m}
+                      className={segClass(defaultView === m)}
                     >
                       {m === 'week' ? '주간' : '월간'}
                     </button>
                   ))}
                 </div>
+              </fieldset>
+
+              <fieldset className="mt-5">
+                <legend className="text-sm font-medium text-slate-700">
+                  주 시작 요일
+                </legend>
+                <div className="mt-2 flex items-center rounded-md border border-slate-200 p-0.5 text-sm">
+                  {WEEK_START_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setWeekStart(o.value)}
+                      aria-pressed={weekStart === o.value}
+                      className={segClass(weekStart === o.value)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-400">
+                  주간 매트릭스와 월간 달력이 이 요일부터 시작합니다.
+                </p>
+              </fieldset>
+
+              <fieldset className="mt-5">
+                <legend className="text-sm font-medium text-slate-700">
+                  화면 테마
+                </legend>
+                <div className="mt-2 flex items-center rounded-md border border-slate-200 p-0.5 text-sm">
+                  {THEME_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setThemePref(o.value)}
+                      aria-pressed={themePref === o.value}
+                      className={segClass(themePref === o.value)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-400">
+                  바로 적용되며 이 기기에만 저장됩니다. 시스템은 기기의 다크 모드 설정을 따릅니다.
+                </p>
               </fieldset>
 
               <button

@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import type { Category, Item } from '../api/types'
 import { cellItems, cellKey, type CellMap } from '../lib/cellMap'
-import { dDayLabel, formatDate } from '../lib/date'
+import { dDayLabel, formatDate, weekdayName } from '../lib/date'
 import { accentHex } from '../lib/colors'
 import { isHoliday } from '../lib/holidays'
 
 // 주간 매트릭스 격자 (태스크 11 렌더 + 13 추가 + 30 상세 패널 연동)
 // 카테고리(행) × 날짜(열). 빈 셀 클릭 → 인라인 입력으로 항목 추가.
 // 기존 항목 클릭 → 상세 패널 열기(onOpenItem). 체크박스 → 완료 토글.
-
-const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 
 interface Props {
   categories: Category[]
@@ -79,7 +77,7 @@ export default function MatrixGrid({
             <th className="sticky left-0 z-10 w-28 border-b border-slate-200 bg-slate-50 px-3 py-2 text-left font-medium text-slate-400">
               카테고리
             </th>
-            {dates.map((d, i) => {
+            {dates.map((d) => {
               const key = formatDate(d)
               const isToday = key === today
               const holiday = isHoliday(key) || d.getDay() === 0
@@ -90,7 +88,7 @@ export default function MatrixGrid({
                     isToday ? 'bg-indigo-50 text-indigo-700' : 'text-slate-400'
                   }`}
                 >
-                  <div className="text-xs">{WEEKDAYS[i]}</div>
+                  <div className="text-xs">{weekdayName(d)}</div>
                   <div className={holiday && !isToday ? 'text-red-500' : 'text-slate-700'}>
                     {d.getDate()}
                   </div>
